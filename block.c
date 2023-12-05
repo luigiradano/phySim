@@ -2,11 +2,13 @@
 #include <stdlib.h>
 
 #define G_CONSTANT 9.81
-#define COLL_THRESH 3
+#define COLL_THRESH 5
 
 SDL_Renderer *rend;
 TTF_Font *Sans;
 SDL_Color Black = {0,0,0};
+
+bool collMat[MAX_OBJS][MAX_OBJS];
 
 //Init helpers
 void setRenderer(SDL_Renderer *ren){
@@ -59,7 +61,7 @@ void printForce(float forceMat[][MAX_OBJS], unsigned int objCount){
 	
 	for(i=0; i<objCount; i++){
 		for(j=0; j<objCount; j++){
-			sprintf(outString, "%2.1f", forceMat[i][j]);
+			sprintf(outString, "%d", collMat[i][j]);
 			printOnScreen(outString, (i) * 40, (j+1) * 40);
 		}
 	}
@@ -96,8 +98,10 @@ void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][
 	//Collision logic
 	while( i < objCount && !collFlag){
 		
+		bool isColliding = (collMat[i][solidRect->id]);
+
 		//Do not check for collisions with self (always true)
-		if( i != solidRect->id){
+		if( i != solidRect->id && !isColliding){
 			
 			bool goingDown = (curSpe >= 0 );//|| totAcc > 0);
 			bool goingUp =  !(curSpe >= 0 );//&& totAcc > 0);
@@ -105,14 +109,14 @@ void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][
 			
 			
 			//If there is a collision with the top rect and top bound, do collision only if going up
-			if( abs(solidRect->yPos - boundarySet[i]->y) < COLL_THRESH && goingUp){
+			if( abs(solidRect->yPos - boundarySet[i]->y) < COLL_THRESH){
 				solidRect->yPos = boundarySet[i]->y;
 				curSpe = 0;
 				collFlag = true;
 				printf("Collision top %d with top %d\n", solidRect->id, i);
 			}
 			//If there is a collision with the bottom rect and bottom bound, do collision if going down
-			else if( abs((solidRect->yPos + solidRect->dispRect.h) - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH && goingDown){
+			else if( abs((solidRect->yPos + solidRect->dispRect.h) - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH ){
 				solidRect->yPos = boundarySet[i]->y + boundarySet[i]->h - solidRect->dispRect.h;
 				curSpe = 0;
 				collFlag = true;
@@ -125,8 +129,6 @@ void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][
 				collFlag = true;
 				printf("Collision bottom  %d with top %d\n", solidRect->id, i);
 				
-				if(forceUp)
-					excForce(forceMat, solidRect->id, i);
 			}
 			//Id there is a collision with the top rect and bottom bound, do collision if going up
 			else if( abs(solidRect->yPos - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH && goingUp){
@@ -137,13 +139,17 @@ void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][
 				forceMat[solidRect->id][i] = forceMat[i][solidRect->id];
 				printf("Collision top %d with bottom %d\n", solidRect->id, i);
 
-				if(!forceUp)
-					excForce(forceMat, solidRect->id, i);
 			}
 
 
-		if(!collFlag)
-			resForce(forceMat, solidRect->id, i);
+			if(collFlag){
+				collMat[solidRect->id][i] = true;
+				excForce(forceMat, solidRect->id, i);
+			}
+			else{
+				resForce(forceMat, solidRect->id, i);
+				collMat[solidRect->id][i] = false;
+			}
 		
 		}
 		
