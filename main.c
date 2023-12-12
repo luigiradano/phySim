@@ -1,5 +1,6 @@
 #include "main.h"
 
+BarPlot genPlot;
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
 
 int main(int argc, const char *argv){
@@ -74,6 +75,16 @@ int main(int argc, const char *argv){
 	prov.dispB = 0x00;
 	prov.id = 2;	
 
+	genPlot.max = 20;
+	genPlot.min = -20;
+	genPlot.pointCount = 10000;
+	genPlot.updateRate = 1;
+	genPlot.callCount = 0;
+	genPlot.dispRect.x = 0;
+	genPlot.dispRect.y = 0;
+	genPlot.dispRect.h = SCREEN_HEIGHT/2;
+	genPlot.dispRect.w = SCREEN_WIDTH;
+	genPlot.pointSet = (SDL_Point*) malloc(10000 * sizeof(SDL_Point));
 	setRenderer(rend);
 
 	unsigned long timeStep_mS = 0;
@@ -90,10 +101,10 @@ int main(int argc, const char *argv){
 						test.ySpeed = 0;
 						break;
 					case SDLK_e:
-						forceMatrix[1][1]= -15;
+						forceMatrix[1][1]= -5;
 						break;
 					case SDLK_d:
-						forceMatrix[1][1] = 15;
+						forceMatrix[1][1] = 5;
 						break;
 					case SDLK_w:
 						forceMatrix[2][2] = -3;
@@ -109,9 +120,9 @@ int main(int argc, const char *argv){
 		SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(rend);
 		
-		timeStep_mS = SDL_GetTicks64() - lastTime;	
-//		SDL_Delay(10);	
-		printf("%.2f FPS\n", 1.0/(timeStep_mS*0.001));
+		timeStep_mS = 1;//SDL_GetTicks64() - lastTime;	
+		SDL_Delay(1);
+//		printf("%.2f FPS\n", 1.0/(timeStep_mS*0.001));
 	
 		stepForces(&prov, boundarySet, forceMatrix, objCount, timeStep_mS*0.01);	
 		drawSolidRect(&prov);
@@ -119,10 +130,11 @@ int main(int argc, const char *argv){
 		stepForces(&test, boundarySet, forceMatrix, objCount, timeStep_mS*0.01);	
 		drawSolidRect(&test);
 		boundarySet[1] = &test.dispRect;
-			
+		
 		lastTime = SDL_GetTicks();
 
 		printForce(forceMatrix, objCount);
+
 		SDL_RenderPresent(rend);
 
 	}

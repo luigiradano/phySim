@@ -2,7 +2,9 @@
 #include <stdlib.h>
 
 #define G_CONSTANT 9.81
-#define COLL_THRESH 5
+#define COLL_THRESH 3
+//#define PRINT_COLLISIONS 
+//#define PRINT_SPEEDS
 
 SDL_Renderer *rend;
 TTF_Font *Sans;
@@ -61,7 +63,7 @@ void printForce(float forceMat[][MAX_OBJS], unsigned int objCount){
 	
 	for(i=0; i<objCount; i++){
 		for(j=0; j<objCount; j++){
-			sprintf(outString, "%d", collMat[i][j]);
+			sprintf(outString, "%2.1f", forceMat[i][j]);
 			printOnScreen(outString, (i) * 40, (j+1) * 40);
 		}
 	}
@@ -69,107 +71,118 @@ void printForce(float forceMat[][MAX_OBJS], unsigned int objCount){
 
 //DOWN IS PLUS
 //Exert force of id1 on id2 blocks
-void excForce(float forceMat[][MAX_OBJS], int id1, int id2){
-	forceMat[id1][id2] = forceMat[id1][id1];
-	forceMat[id2][id1] = forceMat[id1][id2];
+void excForce(float forceMat[][MAX_OBJS], float setForce, int id1, int id2){
+	forceMat[id2][id1] = setForce;
+	forceMat[id1][id2] = -1 * forceMat[id2][id1];
 }
+
 //Remove relative forces of id1 id2 blocks
 void resForce(float forceMat[][MAX_OBJS], int id1, int id2){
 	forceMat[id1][id2] = 0;
 	forceMat[id2][id1] = 0;
 }
 
-void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][MAX_OBJS], unsigned int objCount, float dT_s){
-	//ToDo: Implement collision logic
+float getTotForce(float forceMat[][MAX_OBJS], int id ,int objCount){
 	float totForce = 0;
 	//Compute total force on block caused from other blocks
 	int i;
 	for(i=0; i<objCount; i++){
-		totForce += forceMat[solidRect->id][i];
+		totForce += forceMat[i][id];
 	}
+	return totForce;
+}
 
-	float totAcc = totForce*solidRect->mass;
-	float curSpe = solidRect->ySpeed + (totAcc * dT_s);
-	//Update position temporarely
-	solidRect->yPos = solidRect->yPos + (solidRect->ySpeed * dT_s) + 0.5*(totAcc*dT_s*dT_s);
+void stepForces(SolidRect *solidRect, SDL_Rect *boundarySet[], float forceMat[][MAX_OBJS], unsigned int objCount, float dT_s){
+	//ToDo: Implement collision logic
+	float totForce = getTotForce(forceMat, solidRect->id, objCount);
 	
-	i = 0;	
+	
+	float totAcc=0, curSpe=0, deltaY=0;
+	
+	int i = 0;	
 	bool collFlag = false;
+	bool genColl = false;
 	//Collision logic
-	while( i < objCount && !collFlag){
-		
-		bool isColliding = (collMat[i][solidRect->id]);
-
+	while( i < objCount ){
+		collFlag = false;
 		//Do not check for collisions with self (always true)
-		if( i != solidRect->id && !isColliding){
+		if( i != solidRect->id && !collMat[i][solidRect->id]){
 			
 			bool goingDown = (curSpe >= 0 );//|| totAcc > 0);
-			bool goingUp =  !(curSpe >= 0 );//&& totAcc > 0);
-			bool forceUp = totForce >= 0;
-			
+			bool goingUp =  !(curSpe >= 0 );//||  totAcc > 0);
 			
 			//If there is a collision with the top rect and top bound, do collision only if going up
-			if( abs(solidRect->yPos - boundarySet[i]->y) < COLL_THRESH){
-				solidRect->yPos = boundarySet[i]->y;
-				curSpe = 0;
+			if( abs(solidRect->yPos - boundarySet[i]->y) < COLL_THRESH ){
+//				solidRect->yPos = boundarySet[i]->y;
 				collFlag = true;
+#ifdef PRINT_COLLISIONS
 				printf("Collision top %d with top %d\n", solidRect->id, i);
+#endif
 			}
 			//If there is a collision with the bottom rect and bottom bound, do collision if going down
 			else if( abs((solidRect->yPos + solidRect->dispRect.h) - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH ){
-				solidRect->yPos = boundarySet[i]->y + boundarySet[i]->h - solidRect->dispRect.h;
-				curSpe = 0;
+//				solidRect->yPos = boundarySet[i]->y + boundarySet[i]->h - solidRect->dispRect.h;
 				collFlag = true;
+#ifdef PRINT_COLLISIONS
 				printf("Collision bottom %d with bottom %d\n", solidRect->id, i);
+#endif
 			}
 			//If there is a collision with the bottom rect and top bound, do collision if going down
-			else if( abs((solidRect->yPos + solidRect->dispRect.h) - boundarySet[i]->y) < COLL_THRESH && goingDown){
-				solidRect->yPos = boundarySet[i]->y - solidRect->dispRect.h;
-				curSpe = 0;
+			else if( abs((solidRect->yPos + solidRect->dispRect.h) - boundarySet[i]->y) < COLL_THRESH ){
+//				solidRect->yPos = boundarySet[i]->y - solidRect->dispRect.h;
 				collFlag = true;
+#ifdef PRINT_COLLISIONS
 				printf("Collision bottom  %d with top %d\n", solidRect->id, i);
-				
+#endif				
 			}
 			//Id there is a collision with the top rect and bottom bound, do collision if going up
-			else if( abs(solidRect->yPos - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH && goingUp){
-				solidRect->yPos = boundarySet[i]->y + boundarySet[i]->h;
-				curSpe = 0;
+			else if( abs(solidRect->yPos - (boundarySet[i]->h + boundarySet[i]->y)) < COLL_THRESH ){
+//				solidRect->yPos = boundarySet[i]->y + boundarySet[i]->h;
 				collFlag = true;
-				forceMat[i][solidRect->id] = forceMat[solidRect->id][solidRect->id];
-				forceMat[solidRect->id][i] = forceMat[i][solidRect->id];
+#ifdef PRINT_COLLISIONS
 				printf("Collision top %d with bottom %d\n", solidRect->id, i);
-
+#endif
 			}
 
 
 			if(collFlag){
+				genColl = true;
 				collMat[solidRect->id][i] = true;
-				excForce(forceMat, solidRect->id, i);
+				float relForce = totForce - forceMat[i][solidRect->id];
+				bool forceAdd = ((relForce > 0) && goingDown) || ((relForce < 0) && goingUp);
+
+				if(!forceAdd)
+					relForce *= -1;
+
+				excForce(forceMat, relForce, solidRect->id, i);
 			}
 			else{
-				resForce(forceMat, solidRect->id, i);
+				resForce(forceMat, i, solidRect->id);
 				collMat[solidRect->id][i] = false;
 			}
-		
-		}
+		}	
 		
 		i++;
 	}	
-		
 
-/*
-	if(solidRect->yPos < 0){
-		solidRect->yPos = 0;
-		curSpe = 0;
-	}
+	totAcc = totForce*solidRect->mass;
+	deltaY = (solidRect->ySpeed * dT_s) + 0.5*(totAcc*dT_s*dT_s);
 
-	if( solidRect->yPos > (SCREEN_HEIGHT - solidRect->dispRect.h)){
-		solidRect->yPos = SCREEN_HEIGHT - solidRect->dispRect.h;
-		curSpe = 0;
-	}
-*/	
+if (totForce != 0) 
+	curSpe = solidRect->ySpeed + (totAcc * dT_s);
+else
+	curSpe = 0;
+
+#ifdef PRINT_SPEEDS
+    printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%.3f\n", solidRect->id, curSpe, totForce, totAcc, solidRect->yPos);
+#endif 
+	
+	solidRect->yPos += deltaY;
 	solidRect->dispRect.y = (int) solidRect->yPos;
 	solidRect->ySpeed = curSpe;
+	
+	if(solidRect->id == 1)
+		drawPlot(&genPlot, curSpe, rend);		
 }
 
 void drawSolidRect(SolidRect *solidRect){
