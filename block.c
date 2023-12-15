@@ -1,8 +1,8 @@
 #include "main.h"
 #include <stdlib.h>
 
-#define G_CONSTANT 9.81
-#define COLL_THRESH 3
+#define COLLISION_IGNORE_COUNT 50
+#define COLL_THRESH 1
 #define PRINT_COLLISIONS 
 #define PRINT_SPEEDS
 
@@ -123,31 +123,39 @@ enum{
 	IMPULSE,
 	STATIC
 } CollisionTypes;
-
+//Collision Types negative = timeoutCount
 short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat[][MAX_OBJS], int objCount){
 	//First check if the collision has already been recorded
 	short retVal;
+
+	//Return early since we don't want collision logic
+	if(collMat[id][boundIndex] < 0){	
+		collMat[id][boundIndex] ++;
+		return ABSENT;
+	}
 			
 	SolidRect *solidRect = &rectSet[id];
 	SolidRect *boundRect = &rectSet[boundIndex];
 		
 	bool top_top = abs(solidRect->yPos - boundRect->yPos) < COLL_THRESH;
-	bool top_btm = abs((solidRect->yPos + solidRect->dispRect.h) - (boundRect->yPos + boundRect->dispRect.h)) < COLL_THRESH;
+	bool btm_btm = abs((solidRect->yPos + solidRect->dispRect.h) - (boundRect->yPos + boundRect->dispRect.h)) < COLL_THRESH;
 	bool btm_top = abs((solidRect->yPos + solidRect->dispRect.h) - boundRect->yPos) < COLL_THRESH;
-	bool btm_btm = abs(solidRect->yPos - (boundRect->yPos + boundRect->dispRect.h)) < COLL_THRESH;
+	bool top_btm = abs(solidRect->yPos - (boundRect->yPos + boundRect->dispRect.h)) < COLL_THRESH;
 	bool isCollision = top_top || top_btm || btm_top || btm_btm;
 #ifdef PRINT_COLLISIONS
 	printf("%d\t%d\t%d\t%d\t", top_top, top_btm, btm_top, btm_btm);
 #endif
 
-	if(collMat[id][boundIndex] == 2 || collMat[boundIndex][id] == 2){
+	if(collMat[id][boundIndex] == 2 ){
 		//Check if collision persists (forces point each other)
 		float totForce = getTotForce(forceMat, id, objCount);
 		//If force is downwards and collision is from top, then we go down, no collision
-		bool goDwn = totForce < 0 && (top_top || top_btm);
+		bool goDwn = totForce > 0 && (top_top || top_btm);
 		//If force is upwards and collision is from bottom, then we go up, no collision
-		bool goUp = totForce > 0 && (btm_btm || btm_top);
+		bool goUp = totForce < 0 && (btm_btm || btm_top);
 		if( goUp || goDwn || !isCollision){
+			collMat[id][boundIndex] = -1 * COLLISION_IGNORE_COUNT;
+			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = ABSENT;
 		}
 		else {
@@ -155,7 +163,7 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 		}
 		
 	}
-	else if(collMat[id][boundIndex] == 1 || collMat[boundIndex][id] == 1){
+	else if(collMat[id][boundIndex] == 1 ){
 		retVal = STATIC;
 	}
 	else{
@@ -169,7 +177,8 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 		}
 	}
 	
-	collMat[id][boundIndex] = retVal;
+	if(retVal != ABSENT)
+		collMat[id][boundIndex] = retVal;
 	
 	return retVal;
 }
@@ -200,7 +209,7 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 			switch(collisionType){
 				case IMPULSE:
 					//Elastic impact compute
-//					elasticImpulse(rectSet, id, i);
+					elasticImpulse(rectSet, id, i);
 					break;
 				case STATIC:
 					totForce = getTotForce(forceMat, id, objCount);
