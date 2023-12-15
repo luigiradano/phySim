@@ -44,8 +44,8 @@ typedef struct {
 void printForce(float forceMat[][MAX_OBJS], unsigned int objCount);
 void initForceMat(float forceMat[][MAX_OBJS], unsigned int objCount);
 void setRenderer(SDL_Renderer *ren);
-void stepForces(SolidRect *solidRect, SDL_Rect *boundarSet[], float forceMatrix[][MAX_OBJS], unsigned int objCount, float dT_s);
-void drawSolidRect(SolidRect *solidRect);
+void stepPhys(SolidRect rectSet[], float forceMatrix[][MAX_OBJS], int objCount, float dT_s, int id);
+void drawSolidRect(SolidRect solidRect);
 
 void drawPlot(BarPlot *plot, float currVal, SDL_Renderer *ren);
 

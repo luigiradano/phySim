@@ -5,7 +5,7 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
-      "args": [],
+      "args": ["-lSDL2", "-lSDL2_ttf"],
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/luigi/codice/phySim",
