@@ -4,10 +4,10 @@
 #define COLLISION_IGNORE_COUNT 50
 #define COLL_THRESH 1
 #define LOW_SPEED_THRESH 1
-#define HIGH_SPEEED_THRESH 400
-#define ELASTIC_LOSS 0.7
-//#define PRINT_COLLISIONS 
-//#define PRINT_SPEEDS
+#define HIGH_SPEED_THRESH 400
+#define ELASTIC_LOSS 1.05
+#define PRINT_COLLISIONS 
+#define PRINT_SPEEDS
 
 SDL_Renderer *rend;
 TTF_Font *Sans;
@@ -161,17 +161,21 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = ABSENT;
 		}
+		else{
+			retVal = STATIC;
+		}
 		
 	}
 	else{
 		//Check if collidion present
 		if(isCollision){
 			//We have a collision it seems
-			collMat[id][boundIndex] = -1 * COLLISION_IGNORE_COUNT;
-			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = IMPULSE;
 		}
-		else{	
+		else{
+
+			collMat[id][boundIndex] = ABSENT;
+			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = ABSENT;
 		}
 	}
@@ -197,7 +201,7 @@ void elasticImpulse(SolidRect rectSet[], int id, int collIndex){
 void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, float dT_s, int id){
 	float totForce=0, totAcc=0, curSpe=0, deltaY=0;
 	SolidRect *solidRect = &rectSet[id];
-
+	bool allowMove = true;
 	int i = objCount - 1;	
 	//Collision logic
 	while( i >= 0 ){
@@ -211,10 +215,13 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 				case IMPULSE:
 					//Elastic impact compute
 					elasticImpulse(rectSet, id, i);
-					if(rectSet[id].ySpeed < LOW_SPEED_THRESH)
+					if(abs(rectSet[id].ySpeed) < LOW_SPEED_THRESH)
 						rectSet[id].ySpeed = 0;
+				
 					break;
 				case STATIC:
+					allowMove = false;
+
 					totForce = getTotForce(forceMat, id, objCount);
 					if(i != 0 ){
 						float relF_12 = totForce - forceMat[id][i];
@@ -242,19 +249,33 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 				drawPlot(&genPlot[2], collisionType, rend);
 		}
 		
-			
 		i--;
 	}
 
-	totForce = getTotForce(forceMat, id, objCount);
-	totAcc = totForce/solidRect->mass;
-	curSpe = rectSet[id].ySpeed + totAcc * dT_s;
-	deltaY = (curSpe * dT_s) + 0.5*(totAcc*dT_s*dT_s);
-	
+	if(allowMove){
+		totForce = getTotForce(forceMat, id, objCount);
+		totAcc = totForce/solidRect->mass;
+		curSpe = rectSet[id].ySpeed + totAcc * dT_s;
+		deltaY = (curSpe * dT_s) + 0.5*(totAcc*dT_s*dT_s);
+	}
+	else{
+		curSpe = 0;
+		deltaY = 0;
+	}
 	//Do not update position of bg window
 	if(id == 0)
 		return; 
-		
+	
+	if(curSpe > HIGH_SPEED_THRESH){
+		curSpe = HIGH_SPEED_THRESH;
+		printf("WARN: Max speed reached + !\n");
+	}
+	else if(curSpe < -1 * HIGH_SPEED_THRESH){
+		curSpe = -1 * HIGH_SPEED_THRESH;
+		printf("WARN: Max speed reached - !\n");
+	}
+			
+	
 	rectSet[id].yPos += deltaY;
 	rectSet[id].dispRect.y = rectSet[id].yPos;
 	rectSet[id].ySpeed = curSpe;

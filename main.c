@@ -30,7 +30,7 @@ int main(int argc, const char *argv){
 	bool quit = 0; //Variable to exit gracefully from program
 	SDL_Event e;
 	
-	unsigned const int objCount = 3;
+	unsigned const int objCount = 2;
 	//Force matrix is the matrix of the forces (in the example filled with 3 objects)
 	// .----------.----------.-----------.
 	// | F 0      | F 1 on 0 | F 2 on 0  |
@@ -126,8 +126,8 @@ int main(int argc, const char *argv){
 		stepPhys(objects, forceMatrix, objCount, timeStep_mS*0.01, 1);	
 		drawSolidRect(objects[1]);
 		
-		stepPhys(objects, forceMatrix, objCount, timeStep_mS*0.01, 2);	
-		drawSolidRect(objects[2]);
+//		stepPhys(objects, forceMatrix, objCount, timeStep_mS*0.01, 2);	
+//		drawSolidRect(objects[2]);
 		
 		lastTime = SDL_GetTicks();
 
