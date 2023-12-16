@@ -86,8 +86,7 @@ float getTotForce(float forceMat[][MAX_OBJS], int id ,int objCount){
 	float totForce = 0;
 	//Compute total force on block caused from other blocks
 	int i;
-	if(id == 0)
-		return 0;
+
 	for(i=0; i<objCount; i++){
 		totForce += forceMat[i][id];
 	}
@@ -146,7 +145,7 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 	printf("%d\t%d\t%d\t%d\t", top_top, top_btm, btm_top, btm_btm);
 #endif
 
-	if(collMat[id][boundIndex] == 2 ){
+	if(collMat[id][boundIndex] == STATIC || collMat[id][boundIndex] == IMPULSE ){
 		//Check if collision persists (forces point each other)
 		float totForce = getTotForce(forceMat, id, objCount);
 		//If force is downwards and collision is from top, then we go down, no collision
@@ -162,9 +161,6 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 			retVal =  STATIC;
 		}
 		
-	}
-	else if(collMat[id][boundIndex] == 1 ){
-		retVal = STATIC;
 	}
 	else{
 		//Check if collidion present
@@ -212,45 +208,49 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 					elasticImpulse(rectSet, id, i);
 					break;
 				case STATIC:
+							
 					totForce = getTotForce(forceMat, id, objCount);
-					float relF_12 = totForce - forceMat[id][i];
-					float relF_21 = 0;
-
-					//if(i != 0 ){
+					if(i != 0 ){
+						float relF_12 = totForce - forceMat[id][i];
+						float relF_21 = 0;
 						relF_21 = getTotForce(forceMat, i, objCount) - forceMat[i][id];
-					//}	
-					
-					forceMat[id][i] =  1 * (relF_12 + relF_21);
-					forceMat[i][id] = -1 * forceMat[id][i];
+											
+						forceMat[id][i] =  -1 * (relF_12 + relF_21);
+						forceMat[i][id] = -1 * forceMat[id][i];
+					}
+					else{
+						
+						forceMat[id][i] = totForce - forceMat[i][id];
+						forceMat[i][id] = -1 * forceMat[id][i];	
+					}
+					rectSet[id].ySpeed = 0;
+					rectSet[i].ySpeed = 0;
 					
 					break;
 				case ABSENT:
-					
 					forceMat[i][id] = 0;
 					forceMat[id][i] = 0;
 					break;
 			}
-			totForce = getTotForce(forceMat, id, objCount);
-			totAcc = totForce/solidRect->mass;
-			curSpe = rectSet[id].ySpeed + totAcc * dT_s;
-			deltaY = (curSpe * dT_s) + 0.5*(totAcc*dT_s*dT_s);
-
-			//Do not update position of bg window
-			if(id == 0)
-				return; 
-			if(collisionType != STATIC){
-				rectSet[id].yPos += deltaY;
-				rectSet[id].dispRect.y = rectSet[id].yPos;
-				rectSet[id].ySpeed = curSpe;
-			}
-			else
-				rectSet[id].ySpeed = 0;
 		}
 		i++;
 	}
 
+	totForce = getTotForce(forceMat, id, objCount);
+	totAcc = totForce/solidRect->mass;
+	curSpe = rectSet[id].ySpeed + totAcc * dT_s;
+	deltaY = (curSpe * dT_s) + 0.5*(totAcc*dT_s*dT_s);
+	
+	//Do not update position of bg window
+	if(id == 0)
+		return; 
+		
+	rectSet[id].yPos += deltaY;
+	rectSet[id].dispRect.y = rectSet[id].yPos;
+	rectSet[id].ySpeed = curSpe;
+
 #ifdef PRINT_SPEEDS
-    printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%d\n", solidRect->id, curSpe, totForce, totAcc, solidRect->dispRect.y);
+    printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%.3f\n", solidRect->id, curSpe, totForce, totAcc, solidRect->yPos);
 #endif 
 	if(solidRect->id == 1)
 		drawPlot(&genPlot, curSpe, rend);		
