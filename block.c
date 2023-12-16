@@ -5,7 +5,7 @@
 #define COLL_THRESH 1
 #define LOW_SPEED_THRESH 1
 #define HIGH_SPEEED_THRESH 400
-#define ELASTIC_LOSS 1
+#define ELASTIC_LOSS 0.7
 //#define PRINT_COLLISIONS 
 //#define PRINT_SPEEDS
 
@@ -149,7 +149,7 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 	printf("%d\t%d\t%d\t%d\t", top_top, top_btm, btm_top, btm_btm);
 #endif
 
-	if(collMat[id][boundIndex] == 2 ){
+	if(collMat[id][boundIndex] == STATIC || collMat[id][boundIndex] == IMPULSE ){
 		//Check if collision persists (forces point each other)
 		float totForce = getTotForce(forceMat, id, objCount);
 		//If force is downwards and collision is from top, then we go down, no collision
@@ -161,13 +161,7 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = ABSENT;
 		}
-		else {
-			retVal =  STATIC;
-		}
 		
-	}
-	else if(collMat[id][boundIndex] == 1 ){
-		retVal = STATIC;
 	}
 	else{
 		//Check if collidion present
@@ -217,8 +211,8 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 				case IMPULSE:
 					//Elastic impact compute
 					elasticImpulse(rectSet, id, i);
-					//if(rectSet[id].ySpeed < LOW_SPEED_THRESH)
-					//	rectSet[id].ySpeed = 0;
+					if(rectSet[id].ySpeed < LOW_SPEED_THRESH)
+						rectSet[id].ySpeed = 0;
 					break;
 				case STATIC:
 					totForce = getTotForce(forceMat, id, objCount);
