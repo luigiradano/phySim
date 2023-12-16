@@ -3,8 +3,11 @@
 
 #define COLLISION_IGNORE_COUNT 50
 #define COLL_THRESH 1
-#define PRINT_COLLISIONS 
-#define PRINT_SPEEDS
+#define LOW_SPEED_THRESH 1
+#define HIGH_SPEEED_THRESH 400
+#define ELASTIC_LOSS 1
+//#define PRINT_COLLISIONS 
+//#define PRINT_SPEEDS
 
 SDL_Renderer *rend;
 TTF_Font *Sans;
@@ -86,7 +89,8 @@ float getTotForce(float forceMat[][MAX_OBJS], int id ,int objCount){
 	float totForce = 0;
 	//Compute total force on block caused from other blocks
 	int i;
-
+	if(id == 0)
+		return 0;
 	for(i=0; i<objCount; i++){
 		totForce += forceMat[i][id];
 	}
@@ -145,7 +149,7 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 	printf("%d\t%d\t%d\t%d\t", top_top, top_btm, btm_top, btm_btm);
 #endif
 
-	if(collMat[id][boundIndex] == STATIC || collMat[id][boundIndex] == IMPULSE ){
+	if(collMat[id][boundIndex] == 2 ){
 		//Check if collision persists (forces point each other)
 		float totForce = getTotForce(forceMat, id, objCount);
 		//If force is downwards and collision is from top, then we go down, no collision
@@ -162,10 +166,15 @@ short checkCollision(SolidRect rectSet[], int id, int boundIndex, float forceMat
 		}
 		
 	}
+	else if(collMat[id][boundIndex] == 1 ){
+		retVal = STATIC;
+	}
 	else{
 		//Check if collidion present
 		if(isCollision){
 			//We have a collision it seems
+			collMat[id][boundIndex] = -1 * COLLISION_IGNORE_COUNT;
+			collMat[boundIndex][id] = collMat[id][boundIndex];
 			retVal = IMPULSE;
 		}
 		else{	
@@ -184,8 +193,10 @@ void elasticImpulse(SolidRect rectSet[], int id, int collIndex){
 	float ySpeedInit = rectSet[id].ySpeed;
 
 	rectSet[id].ySpeed = ((rectSet[id].mass - rectSet[collIndex].mass) / totMass) * rectSet[id].ySpeed  + (2 * rectSet[collIndex].mass / totMass) * rectSet[collIndex].ySpeed;
+	rectSet[id].ySpeed *= ELASTIC_LOSS;
 
 	rectSet[collIndex].ySpeed = ((2 * rectSet[id].mass) / totMass) * ySpeedInit + ((rectSet[collIndex].mass - rectSet[id].mass) / totMass) * rectSet[collIndex].ySpeed;
+	rectSet[collIndex].ySpeed *= ELASTIC_LOSS;
 
 }
 
@@ -193,9 +204,9 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 	float totForce=0, totAcc=0, curSpe=0, deltaY=0;
 	SolidRect *solidRect = &rectSet[id];
 
-	int i = 0;	
+	int i = objCount - 1;	
 	//Collision logic
-	while( i < objCount ){
+	while( i >= 0 ){
 		//Do not check for collisions with self (always true)
 		if( i != solidRect->id ){
 			short collisionType = checkCollision(rectSet, id, i, forceMat, objCount);
@@ -206,16 +217,17 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 				case IMPULSE:
 					//Elastic impact compute
 					elasticImpulse(rectSet, id, i);
+					//if(rectSet[id].ySpeed < LOW_SPEED_THRESH)
+					//	rectSet[id].ySpeed = 0;
 					break;
 				case STATIC:
-							
 					totForce = getTotForce(forceMat, id, objCount);
 					if(i != 0 ){
 						float relF_12 = totForce - forceMat[id][i];
 						float relF_21 = 0;
 						relF_21 = getTotForce(forceMat, i, objCount) - forceMat[i][id];
 											
-						forceMat[id][i] =  -1 * (relF_12 + relF_21);
+						forceMat[id][i] = -1 * (relF_12 + relF_21);
 						forceMat[i][id] = -1 * forceMat[id][i];
 					}
 					else{
@@ -224,16 +236,20 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 						forceMat[i][id] = -1 * forceMat[id][i];	
 					}
 					rectSet[id].ySpeed = 0;
-					rectSet[i].ySpeed = 0;
-					
+					rectSet[i].ySpeed = 0;	
 					break;
 				case ABSENT:
+					
 					forceMat[i][id] = 0;
 					forceMat[id][i] = 0;
 					break;
 			}
+			if(solidRect->id == 1)
+				drawPlot(&genPlot[2], collisionType, rend);
 		}
-		i++;
+		
+			
+		i--;
 	}
 
 	totForce = getTotForce(forceMat, id, objCount);
@@ -252,8 +268,10 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 #ifdef PRINT_SPEEDS
     printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%.3f\n", solidRect->id, curSpe, totForce, totAcc, solidRect->yPos);
 #endif 
-	if(solidRect->id == 1)
-		drawPlot(&genPlot, curSpe, rend);		
+	if(solidRect->id == 1){
+		drawPlot(&genPlot[0], curSpe, rend);
+		drawPlot(&genPlot[1], totForce, rend);
+	}
 }
 
 void drawSolidRect(SolidRect solidRect){

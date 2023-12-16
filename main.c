@@ -1,6 +1,6 @@
 #include "main.h"
 
-BarPlot genPlot;
+BarPlot genPlot[PLOT_COUNT];
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
 
 int main(int argc, const char *argv){
@@ -57,7 +57,8 @@ int main(int argc, const char *argv){
 	forceMatrix[1][1] = 9.81; // Id 1 --> (1,1) in matrix is its own force
 	objects[1].mass = 1;
 	objects[1].dispRect.h = 100;
-	objects[1].dispRect.x = SCREEN_WIDTH/2-50;
+	objects[1].dispRect.w = 100;
+	objects[1].dispRect.x = SCREEN_WIDTH/2+150;
 	objects[1].yPos = 300;
 	objects[1].dispR = 0xFF;
 	objects[1].dispG = 0;
@@ -70,23 +71,17 @@ int main(int argc, const char *argv){
 	objects[2].ySpeed = 0;
 	objects[2].dispRect.w = 100;
 	objects[2].dispRect.h = 100;
-	objects[2].dispRect.x = SCREEN_WIDTH/2-150;
+	objects[2].dispRect.x = SCREEN_WIDTH/2+175;
 	objects[2].yPos = 50;
 	objects[2].dispR = 0x00;
 	objects[2].dispG = 0xFF;
 	objects[2].dispB = 0x00;
 	objects[2].id = 2;	
 
-	genPlot.max = 20;
-	genPlot.min = -20;
-	genPlot.pointCount = 10000;
-	genPlot.updateRate = 1;
-	genPlot.callCount = 0;
-	genPlot.dispRect.x = 0;
-	genPlot.dispRect.y = 0;
-	genPlot.dispRect.h = SCREEN_HEIGHT/2;
-	genPlot.dispRect.w = SCREEN_WIDTH;
-	genPlot.pointSet = (SDL_Point*) malloc(10000 * sizeof(SDL_Point));
+	initPlot(&genPlot[0], 200.0, 150, 0, 400, 200, "Speed");
+	initPlot(&genPlot[1], 20.0,  150, 250, 400, 200, "Force");
+	initPlot(&genPlot[2], 6.0,   150, 500, 400, 200, "Coll.");
+
 	setRenderer(rend);
 
 	unsigned long timeStep_mS = 0;
@@ -105,16 +100,16 @@ int main(int argc, const char *argv){
 //						objects[2].ySpeed = 0;
 						break;
 					case SDLK_e:
-						forceMatrix[1][1]= -5;
+						forceMatrix[2][2]= -5;
 						break;
 					case SDLK_d:
-						forceMatrix[1][1] = 5;
+						forceMatrix[2][2] = 5;
 						break;
 					case SDLK_w:
-						forceMatrix[2][2] = -3;
+						forceMatrix[1][1] = -3;
 						break;
 					case SDLK_s:
-						forceMatrix[2][2] = 3;
+						forceMatrix[1][1] = 3;
 						break;
 				}
 			}
@@ -124,7 +119,7 @@ int main(int argc, const char *argv){
 		SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(rend);
 		
-		timeStep_mS = SDL_GetTicks64() - lastTime;	
+		timeStep_mS = 1;//SDL_GetTicks64() - lastTime;	
 		SDL_Delay(1);
 //		printf("%.2f FPS\n", 1.0/(timeStep_mS*0.001));
 	
