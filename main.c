@@ -81,9 +81,9 @@ int main(int argc, const char *argv){
 	
 	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend);
 	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
-	initPlot(&genPlot[2], 6.0,   150, 500, 400, 200, "Coll.", rend);
+	initPlot(&genPlot[2], 1E4,   150, 500, 400, 200, "Energy", rend);
 
-	unsigned long timeStep_mS = 0;
+	unsigned long timeStep_uS = 0;
 	unsigned long lastTime = 0;
 	bool plotSelectionMenu = 0;
 	bool plotEditMenu = 0;
@@ -143,12 +143,12 @@ int main(int argc, const char *argv){
 		SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(rend);
 		
-		timeStep_mS = 1;//SDL_GetTicks64() - lastTime;	
-		SDL_Delay(1);
+		timeStep_uS = 100;//SDL_GetTicks64() - lastTime;	
+//		SDL_Delay(1);
 	//		printf("%.2f FPS\n", 1.0/(timeStep_mS*0.001));
 	
 		
-		stepPhys(objects, forceMatrix, objCount, timeStep_mS*0.01, 1);	
+		stepPhys(objects, forceMatrix, objCount, timeStep_uS*0.000000001, 1);	
 		drawSolidRect(objects[1]);
 		
 		if(objects[1].ySpeed > 0 && !wasSpeedPositive){
@@ -160,9 +160,14 @@ int main(int argc, const char *argv){
 			piCount ++;
 		}	
 		
-		printf("%d = PI?\n", piCount);
-
-		stepPhys(objects, forceMatrix, objCount, timeStep_mS*0.01, 2);	
+		float energy = pow(objects[1].ySpeed, 2)*0.5*objects[1].mass	;
+		energy += pow(objects[2].ySpeed, 2)*0.5*objects[2].mass;
+		
+		printf("%d = PI?\t %.2f = ENERGY\n", piCount, energy);
+		if(energy != 0)
+		drawPlot(&genPlot[2], energy/10);	
+	
+		stepPhys(objects, forceMatrix, objCount, timeStep_uS*0.000000001, 2);	
 		drawSolidRect(objects[2]);
 
 		for(int i = 0; i < objCount-1; i++){
@@ -174,8 +179,7 @@ int main(int argc, const char *argv){
 		}
 			
 		lastTime = SDL_GetTicks();
-		printForce(forceMatrix, objCount);
-		
+		printForce(forceMatrix, objCount);	
 		if(plotSelectionMenu){
 			plotEditMenu = drawSelectMenu(rend, clickPos);
 			plotSelectionMenu = !plotEditMenu; //When switching to editMenu disable selection

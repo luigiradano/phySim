@@ -1,9 +1,9 @@
 #include "main.h"
 
-#define CORR_WEI 1
-#define CORR_EXP 5 
+#define CORR_WEI 1E5
+#define CORR_EXP 1 
 #define OSC_CUTOUT 1
-#define MAX_FORCE 1E5
+#define MAX_FORCE 1E20
 
 
 

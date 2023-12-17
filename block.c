@@ -29,7 +29,7 @@ void initForceMat(float forceMat[][MAX_OBJS], unsigned int objCount){
 }
 
 void printForce(float forceMat[][MAX_OBJS], unsigned int objCount){
-	char outString[10];	
+	char outString[100];	
 	int i,j;
 	printOnScreen("Forces matrix:", 0,0, rend);
 	
@@ -55,10 +55,9 @@ float getTotForce(float forceMat[][MAX_OBJS], int id ,int objCount){
 
 void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, float dT_s, int id){
 	float totForce=0, totAcc=0, curSpe=0, deltaY=0;
-	SolidRect *solidRect = &rectSet[id];
-
+	
 	totForce = getTotForce(forceMat, id, objCount);
-	totAcc = totForce/solidRect->mass;
+	totAcc = totForce/rectSet[id].mass;
 	curSpe = rectSet[id].ySpeed + totAcc * dT_s;
 	deltaY = (curSpe * dT_s) + 0.5*(totAcc*dT_s*dT_s);
 	
@@ -76,15 +75,15 @@ void stepPhys(SolidRect rectSet[], float forceMat[][MAX_OBJS], int objCount, flo
 	}
 			
 	
-	rectSet[id].yPos += deltaY;
-	rectSet[id].dispRect.y = rectSet[id].yPos;
+	rectSet[id].yPos += deltaY*10000;
+	rectSet[id].dispRect.y = rectSet[id].yPos ;
 	rectSet[id].ySpeed = curSpe;
 
 #ifdef PRINT_SPEEDS
-    printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%.3f\n", solidRect->id, curSpe, totForce, totAcc, solidRect->yPos);
+    printf("%ID:%d\tSpe=%.3f\tFor.=%.3f\tAcc=%.3f\tyPs=%.3f\n", id, curSpe, totForce, totAcc, rectSet[id].yPos);
 #endif 
-	if(solidRect->id == 2){
-		//drawPlot(&genPlot[0], curSpe);
+	if(id == 2){
+		drawPlot(&genPlot[0], curSpe);
 		drawPlot(&genPlot[1], totForce);
 	}
 }
