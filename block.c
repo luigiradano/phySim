@@ -19,11 +19,13 @@ void setRenderer(SDL_Renderer *ren){
 	rend = ren;
 }
 //Set up forceMat to 0s
-void initForceMat(float forceMat[][MAX_OBJS], unsigned int objCount){
-	int i,j;
+void initForceMat(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount){
+	int i,j,k;
 	for(i=0; i<objCount; i++){
 		for(j=0; j<objCount; j++){
-			forceMat[i][j] = 0;
+			for(k=0; k<objCount; k++){
+				forceMat[i][j][k] = 0;
+			}
 		}
 	}
 }

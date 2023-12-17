@@ -1,4 +1,5 @@
-#include "main.h"
+#define MAX_OBJS 5
+#define DIMENSIONS 2
 
 //State object for generic rigid body
 typedef struct{
@@ -25,4 +26,5 @@ typedef struct {
 
 void printRigidBallState(RigidBall *ball);
 void initRigidBall(RigidBall *ball, double radius, double mass);
-.
+void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW);
+void odeSolve(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount);

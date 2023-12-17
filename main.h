@@ -7,6 +7,7 @@
 #define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 800
 #define MAX_OBJS 5
+#define DIMENSIONS 2
 #define PLOT_COUNT 3
 
 typedef struct {
@@ -31,7 +32,8 @@ typedef struct {
 */
 
 void printForce(float forceMat[][MAX_OBJS], unsigned int objCount);
-void initForceMat(float forceMat[][MAX_OBJS], unsigned int objCount);
+void initForceMat(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount);
+double getTotForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int id, int objCount, int dimId);
 void setRenderer(SDL_Renderer *ren);
 void stepPhys(SolidRect rectSet[], float forceMatrix[][MAX_OBJS], int objCount, float dT_s, int id);
 void drawSolidRect(SolidRect solidRect);
