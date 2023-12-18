@@ -1,56 +1,93 @@
 #include "main.h"
 #include "rigidBody.h"
+#include "constraintSolve.h"
+#include "matrixOps.h"
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
 double forceMatrix[MAX_OBJS][MAX_OBJS][DIMENSIONS];	
-
+char initSDL();
+void pollSDL();
+	
 unsigned const int objCount = 3;
+SDL_Window *window;
+SDL_Renderer *rend;
+bool plotSelectionMenu = 0;
+bool plotEditMenu = 0;
+unsigned int lastKey;
+SDL_Point clickPos;
+bool quit = 0; //Variable to exit gracefully from program
 
+//MAIN
 int main(int argc, const char *argv){
-
-	if(SDL_Init(SDL_INIT_VIDEO) < 0){
-		printf("SDL Init Failed!\nERROR:\t%s\n", SDL_GetError());
-		return 1;
-	}
-
-	SDL_Window *window = SDL_CreateWindow("Physics Sim V0.1",
-			SDL_WINDOWPOS_UNDEFINED,
-			SDL_WINDOWPOS_UNDEFINED,
-			SCREEN_WIDTH, SCREEN_HEIGHT,
-			SDL_WINDOW_SHOWN);
-	if(!window){
-		printf("SDL Window could not be created!\nERROR:\t%s\n", SDL_GetError());
-		return 2;
-	}
-
-	SDL_Renderer *rend = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-	if(!rend){
-		printf("SDL Renderer could not be initalized!\nERROR:\t%s\n", SDL_GetError());
-		return 3;
-	}
-
-	bool quit = 0; //Variable to exit gracefully from program
-	SDL_Event e;
 	
-
-	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend);
-	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
-	initPlot(&genPlot[2], 1E4,   150, 500, 400, 200, "Energy", rend);
-
-	unsigned long timeStep_uS = 0;
+	initSDL();
 	
-	bool plotSelectionMenu = 0;
-	bool plotEditMenu = 0;
-	unsigned int lastKey;
-	SDL_Point clickPos;
-	clickPos.x = -1;
-	clickPos.y = -1;	
+//	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend);
+//	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
+//	initPlot(&genPlot[2], 1E4,   150, 500, 400, 200, "Energy", rend);
 
+	unsigned long timeStep_uS = 1000;
+	
 	RigidBall ball;
 	initRigidBall(&ball, 0.500, 5);	
+	
+	ball.state.yPos = 2;
+	ball.state.xPos = 2;
+	
+	Constraint constraints[1];
+	
+	initConstraints(&constraints[0], getTraj, getJacob, getJacob2);
+	solveConstraints(constraints, 1, &ball.state, forceMatrix);
 
 	while(!quit){
+			
+		pollSDL();
+			
+		SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
+		SDL_RenderClear(rend);
+		
+		
+		odeSolve(&ball.state, forceMatrix, timeStep_uS*0.000001, objCount);
+		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
+//		printRigidBallState(&ball);
+//		drawPlot(&genPlot[1], ball.state.ySpe);
+//		printForce(forceMatrix, objCount);	
+
+
+
+
+
+
+
+
+		SDL_Delay(1);
+		if(plotSelectionMenu){
+			plotEditMenu = drawSelectMenu(rend, clickPos);
+			plotSelectionMenu = !plotEditMenu; //When switching to editMenu disable selection
+		}
+		if(plotEditMenu){
+			drawEditMenu(rend, SCREEN_HEIGHT, SCREEN_WIDTH, lastKey);
+			lastKey = 0;
+		}
+		SDL_RenderPresent(rend);
+		
+
+	}
+	killProgram(window, rend);	
+
+	return 0;
+}
+
+void killProgram(SDL_Window *win, SDL_Renderer *ren){
+	if(!win)
+		SDL_DestroyWindow(win);
+	if(!ren)
+		SDL_DestroyRenderer(ren);
+	SDL_Quit();
+}
+void pollSDL(){
+	
+		SDL_Event e;
 		while(SDL_PollEvent(&e)){
 			
 			if(e.type == SDL_QUIT)
@@ -92,43 +129,31 @@ int main(int argc, const char *argv){
 				}
 			}
 		}
-	
-					
-		SDL_SetRenderDrawColor(rend, 0xFF, 0xFF, 0xFF, 0xFF);
-		SDL_RenderClear(rend);
-		
-		timeStep_uS = 1000;//SDL_GetTicks64() - lastTime;	
-		SDL_Delay(1);
-		odeSolve(&ball.state, forceMatrix, timeStep_uS*0.000001, objCount);
-		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
-		printRigidBallState(&ball);
-		drawPlot(&genPlot[1], ball.state.ySpe);
-//		printForce(forceMatrix, objCount);	
-		if(plotSelectionMenu){
-			plotEditMenu = drawSelectMenu(rend, clickPos);
-			plotSelectionMenu = !plotEditMenu; //When switching to editMenu disable selection
-		}
-		if(plotEditMenu){
-			drawEditMenu(rend, SCREEN_HEIGHT, SCREEN_WIDTH, lastKey);
-			lastKey = 0;
-		}
-		SDL_RenderPresent(rend);
-		
+}
+char initSDL(){
 
+	if(SDL_Init(SDL_INIT_VIDEO) < 0){
+		printf("SDL Init Failed!\nERROR:\t%s\n", SDL_GetError());
+		return 1;
 	}
-	killProgram(window, rend);	
 
-	return 0;
+	window = SDL_CreateWindow("Physics Sim V0.1",
+			SDL_WINDOWPOS_UNDEFINED,
+			SDL_WINDOWPOS_UNDEFINED,
+			SCREEN_WIDTH, SCREEN_HEIGHT,
+			SDL_WINDOW_SHOWN);
+	if(!window){
+		printf("SDL Window could not be created!\nERROR:\t%s\n", SDL_GetError());
+		return 2;
+	}
+
+	rend = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+
+	if(!rend){
+		printf("SDL Renderer could not be initalized!\nERROR:\t%s\n", SDL_GetError());
+		return 3;
+	}
 }
-
-void killProgram(SDL_Window *win, SDL_Renderer *ren){
-	if(!win)
-		SDL_DestroyWindow(win);
-	if(!ren)
-		SDL_DestroyRenderer(ren);
-	SDL_Quit();
-}
-
 //Set up forceMat to 0s
 void initForceMat(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount){
 	int i,j,k;

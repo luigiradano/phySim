@@ -1,3 +1,6 @@
+#ifndef RIGIDBODY_H
+#define RIGIDBODY_H
+
 #define MAX_OBJS 5
 #define DIMENSIONS 2
 
@@ -28,3 +31,6 @@ void printRigidBallState(RigidBall *ball);
 void initRigidBall(RigidBall *ball, double radius, double mass);
 void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW);
 void odeSolve(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount);
+
+
+#endif
