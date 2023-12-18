@@ -8,6 +8,7 @@ typedef struct {
 } Matrix;
 
 //Function definitions
+void printMatrix(Matrix *mat);
 void initMatrix(Matrix *mat, unsigned int rows, unsigned int cols);
 void freeMatrix(Matrix *mat);
 double getElement(Matrix *mat, unsigned int row, unsigned int col);

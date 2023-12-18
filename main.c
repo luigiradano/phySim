@@ -22,7 +22,7 @@ int main(int argc, const char *argv){
 	
 	initSDL();
 	
-//	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend);
+//	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend)
 //	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
 //	initPlot(&genPlot[2], 1E4,   150, 500, 400, 200, "Energy", rend);
 
@@ -32,8 +32,29 @@ int main(int argc, const char *argv){
 	initRigidBall(&ball, 0.500, 5);	
 	
 	ball.state.yPos = 2;
-	ball.state.xPos = 2;
-	
+	ball.state.xPos = 0;
+
+/*
+	Matrix A, B, C;
+	initMatrix(&A, 2, 2);
+	initMatrix(&B, 2, 2);
+	initMatrix(&C, 2, 2);
+		
+	setElement(&B, 0, 0, 1);
+	setElement(&B, 1, 1, 1);
+	setElement(&B, 0, 1, 1);
+	setElement(&B, 1, 0, 1);
+		
+	setElement(&A, 0, 0, 1);
+	setElement(&A, 0, 1, 1);
+	setElement(&A, 1, 0, 1);
+	setElement(&A, 1, 1, 1);
+		
+	matrixMultiply(&A, &B, &C);
+
+	printMatrix(&C);
+	return 0;	
+*/
 	Constraint constraints[1];
 	
 	initConstraints(&constraints[0], getTraj, getJacob, getJacob2);
@@ -50,9 +71,10 @@ int main(int argc, const char *argv){
 		odeSolve(&ball.state, forceMatrix, timeStep_uS*0.000001, objCount);
 		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
 //		printRigidBallState(&ball);
-//		drawPlot(&genPlot[1], ball.state.ySpe);
+//		drawPlot(&genPlot[1], ballSpe);
 //		printForce(forceMatrix, objCount);	
 
+		solveConstraints(constraints, 1, &ball.state, forceMatrix);
 
 
 

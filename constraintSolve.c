@@ -19,8 +19,8 @@ void getJacob(double x, double y, Matrix *RES){
 	setElement(RES, 0, 1, temp);
 }
 void getJacob2(double x, double y, Matrix *RES){
-	setElement(RES, 0, 0, 1);
-	setElement(RES, 0, 1, -1);
+	setElement(RES, 0, 0, 2*(x));
+	setElement(RES, 0, 1, 2*(y));
 }
 
 
@@ -102,12 +102,12 @@ void initConstraints(Constraint *con, double (*getC)(double x, double y), void (
 	con->getJacobian2 = getJacobian2;
 }
 
-void solveConstraints(Constraint *con[], unsigned int consCount, RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
+void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
 		unsigned int i = 0; 	
 		Matrix jacob;	
-		initMatrix(&jacob, 2, 2);
+		initMatrix(&jacob, 2, 1);
 		Matrix jacobInv;
-		initMatrix(&jacobInv, 2, 2);
+		initMatrix(&jacobInv, 1, 2);
 		Matrix jacob2; 
 		initMatrix(&jacob2, 2, 1);
 		Matrix mass;
@@ -121,31 +121,55 @@ void solveConstraints(Constraint *con[], unsigned int consCount, RigidState *sta
 		initMatrix(&tmp, 1, 1);
 		
 		getJacob( state->xPos, state->yPos, &jacob);
-		getJacob2( state->xPos, state->yPos, &jacob2);		
+		getJacob2( state->xSpe, state->ySpe, &jacob2);		
 		
+			
 		transpose(&jacob);
 		copyMat(&jacob, &jacobInv);
 		transpose(&jacob);
+		
+		printf("Jacobian :\n");
+		printMatrix(&jacob);
+		printf("Jacobian 2:\n");
+		printMatrix(&jacob2);
 			
 		matrixMultiply(&jacob, &jacobInv, &tmp);
 		setElement(&tmp, 0, 0, getElement(&tmp, 0, 0) / state->mass);
 		
-		setElement(&force, 0, 0, forceMat[1][1][0]);
-		setElement(&force, 0, 1, forceMat[1][1][1]);
+		setElement(&force, 0, 0, forceMat[0][0][0]);
+		setElement(&force, 0, 1, forceMat[0][0][1]);
 		setElement(&velocity, 0, 0, state->xSpe);
-		setElement(&velocity, 0, 1, state->ySpe);
+		setElement(&velocity, 1, 0, state->ySpe);
+		
+		
 		
 		double left, right;
 		left = getElement(&tmp, 0, 0);
-		
+	
+		transpose(&velocity);	
 		matrixMultiply(&jacob2, &velocity, &tmp);
 		right = getElement(&tmp, 0, 0) * -1;
 		
+		transpose(&force);
 		matrixMultiply(&jacob, &force, &tmp);
 		right -= getElement(&tmp, 0, 0) / state->mass;
+		
+		printf("Force :\n");
+		printMatrix(&force);
+		
+		printf("Velocity :\n");
+		printMatrix(&velocity);
+
+		if(left == 0)
+			return;
+		double lambda = right/left;
+		double forceX = getElement(&jacobInv, 0, 0) * lambda;
+		double forceY = getElement(&jacobInv, 0, 1) * lambda;
 				
-		printf("%.2f\t%.2f\t%.2f\t%.2f\n", left, right, right/left, 0);
-			
+		printf("Lambda: %.2f\tForceX:%.2f\tForceY:%.2f\n", lambda, forceX, forceY);
+		
+		forceMat[1][0][0] = forceX;
+		forceMat[1][0][1] = forceY;		
 			
 
 } 

@@ -1,7 +1,7 @@
 #include "main.h"
 #include "rigidBody.h"
 
-#define PIXELS_PER_METER 100
+#define PIXELS_PER_METER 10
 
 void initRigidBall(RigidBall *ball, double radius, double mass){
 	ball->state.xPos = 0.010;
@@ -38,6 +38,7 @@ void odeSolve(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double
 	double xAcc = getTotForce(forceMat, state->id, objCount, 0) / state->mass;
 	double yAcc = getTotForce(forceMat, state->id, objCount, 1) / state->mass;
 	
+	printf("\t%.2fX\t%.2fY\n", xAcc, yAcc);	
 	state->xSpe += xAcc * dT;
 	state->ySpe += yAcc * dT;
 

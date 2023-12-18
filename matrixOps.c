@@ -1,7 +1,15 @@
 #include "main.h"
 #include "matrixOps.h"
 
-
+void printMatrix(Matrix *mat){
+	unsigned int i, j;
+	for( i = 0; i < mat->rows; i++){
+		for( j = 0; j < mat->cols; j++){
+			printf("\t%.3f", getElement(mat, i, j));
+		}
+		printf("\n");
+	}
+}
 void initMatrix(Matrix *mat, unsigned int rows, unsigned int cols){
 	double* tmp = (double*) malloc(sizeof(double) * rows * cols);
 	if(tmp == NULL)
@@ -19,12 +27,9 @@ void freeMatrix(Matrix *mat){
 double getElement(Matrix *mat, unsigned int row, unsigned int col){
 	unsigned int index;
 	
-	if(mat->transposed)
-		index = row + col * mat->cols;
-	else
-		index = col + row * mat->cols;
+	index = col + row * mat->cols;
 	
-	if(index < mat->cols*mat->rows)
+	if( col < mat->cols && row < mat->rows)
 		return *(mat->data+index);
 	else	
 		return 0;
@@ -32,10 +37,8 @@ double getElement(Matrix *mat, unsigned int row, unsigned int col){
 
 bool setElement(Matrix *mat, unsigned int row, unsigned int col, double val){
 	unsigned int index;
-	if(mat->transposed)
-		index = row + col * mat->cols;
-	else
-		index = col + row * mat->cols;
+	
+	index = col + row * mat->cols;
 		
 	if(index < mat->cols * mat->rows){
 		*(mat->data+index) = val;
@@ -54,10 +57,10 @@ bool matrixMultiply(Matrix *A, Matrix *B, Matrix *RES){
 		return false;
 	//Do not check the result matrix as it could be larger then in needs
 
-	for(iOut = 0; iOut < A->rows; iOut ++){
+	for(iOut = 0; iOut < A->cols; iOut ++){
 		for(jOut = 0; jOut < B->rows; jOut++){
 			tempSum = 0;
-			for(i = 0; i < A->cols; i++)
+			for(i = 0; i < A->rows; i++)
 				tempSum += getElement(A, i, jOut) * getElement(B, iOut, i);
 			setElement(RES, iOut, jOut, tempSum);
 		}	
@@ -79,8 +82,8 @@ bool copyMat(Matrix *A, Matrix *B){
 	if(A->cols != B->cols || A->rows != B->rows)	
 		return false;
 	
-	for( i = 0; i < A-> cols; i ++){
-		for( j = 0; j < A->rows; j ++){
+	for( i = 0; i < A->rows; i ++){
+		for( j = 0; j < A->cols; j ++){
 			setElement(B, i, j, getElement(A, i, j));
 		}	
 	}	
