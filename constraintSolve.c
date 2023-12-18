@@ -6,6 +6,7 @@
 #define CORR_EXP 1 
 #define OSC_CUTOUT 1
 #define MAX_FORCE 1E20
+//#define DEBUG_PHY 
 
 //JACOBIAN COMPUTATION INSTRUCTIOS
 double getTraj(double x, double y){
@@ -13,9 +14,9 @@ double getTraj(double x, double y){
 }
 void getJacob(double x, double y, Matrix *RES){
 	double temp;
-	temp = 2*x + y*y - 4;
+	temp = 2*x;
 	setElement(RES, 0, 0, temp);
-	temp = 2*y + x*x - 4;
+	temp = 2*y;
 	setElement(RES, 0, 1, temp);
 }
 void getJacob2(double x, double y, Matrix *RES){
@@ -127,12 +128,12 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		transpose(&jacob);
 		copyMat(&jacob, &jacobInv);
 		transpose(&jacob);
-		
+#ifdef DEBUG_PHY		
 		printf("Jacobian :\n");
 		printMatrix(&jacob);
 		printf("Jacobian 2:\n");
 		printMatrix(&jacob2);
-			
+#endif
 		matrixMultiply(&jacob, &jacobInv, &tmp);
 		setElement(&tmp, 0, 0, getElement(&tmp, 0, 0) / state->mass);
 		
@@ -153,21 +154,24 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		transpose(&force);
 		matrixMultiply(&jacob, &force, &tmp);
 		right -= getElement(&tmp, 0, 0) / state->mass;
-		
+		right -= getTraj(state->xPos, state->yPos) * 0.1;
+		matrixMultiply(&jacob, &velocity, &tmp);
+		right -= getElement(&tmp, 0, 0) * 0.1;
+#ifdef DEBUG_PHY		
 		printf("Force :\n");
 		printMatrix(&force);
 		
 		printf("Velocity :\n");
 		printMatrix(&velocity);
-
+#endif
 		if(left == 0)
 			return;
 		double lambda = right/left;
 		double forceX = getElement(&jacobInv, 0, 0) * lambda;
 		double forceY = getElement(&jacobInv, 0, 1) * lambda;
-				
+#ifdef DEBUG_PHY			
 		printf("Lambda: %.2f\tForceX:%.2f\tForceY:%.2f\n", lambda, forceX, forceY);
-		
+#endif
 		forceMat[1][0][0] = forceX;
 		forceMat[1][0][1] = forceY;		
 			

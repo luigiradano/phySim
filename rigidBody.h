@@ -1,6 +1,7 @@
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
+#define PIXELS_PER_METER 100
 #define MAX_OBJS 5
 #define DIMENSIONS 2
 

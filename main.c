@@ -2,6 +2,10 @@
 #include "rigidBody.h"
 #include "constraintSolve.h"
 #include "matrixOps.h"
+#include <math.h>
+
+#define TIMESTEP 0.00001 //In seconds
+
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
 double forceMatrix[MAX_OBJS][MAX_OBJS][DIMENSIONS];	
@@ -17,6 +21,7 @@ unsigned int lastKey;
 SDL_Point clickPos;
 bool quit = 0; //Variable to exit gracefully from program
 
+RigidBall ball;
 //MAIN
 int main(int argc, const char *argv){
 	
@@ -24,12 +29,12 @@ int main(int argc, const char *argv){
 	
 //	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend)
 //	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
-//	initPlot(&genPlot[2], 1E4,   150, 500, 400, 200, "Energy", rend);
-
-	unsigned long timeStep_uS = 1000;
+	initPlot(&genPlot[2], 200,   150, 500, 400, 200, "Energy", rend);
 	
-	RigidBall ball;
-	initRigidBall(&ball, 0.500, 5);	
+	genPlot[2].updateRate = 100;
+	
+	initRigidBall(&ball, 0.5, 1);	
+
 	
 	ball.state.yPos = 2;
 	ball.state.xPos = 0;
@@ -68,10 +73,14 @@ int main(int argc, const char *argv){
 		SDL_RenderClear(rend);
 		
 		
-		odeSolve(&ball.state, forceMatrix, timeStep_uS*0.000001, objCount);
+		odeSolve(&ball.state, forceMatrix, TIMESTEP, objCount);
 		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
+
+		double speed = ball.state.xSpe*ball.state.xSpe + ball.state.ySpe*ball.state.ySpe;
+		speed = sqrt(speed); 
+		double energy = 0.5 * ball.state.mass * pow(speed, 2);
 //		printRigidBallState(&ball);
-//		drawPlot(&genPlot[1], ballSpe);
+		drawPlot(&genPlot[2], energy);
 //		printForce(forceMatrix, objCount);	
 
 		solveConstraints(constraints, 1, &ball.state, forceMatrix);
@@ -82,7 +91,6 @@ int main(int argc, const char *argv){
 
 
 
-		SDL_Delay(1);
 		if(plotSelectionMenu){
 			plotEditMenu = drawSelectMenu(rend, clickPos);
 			plotSelectionMenu = !plotEditMenu; //When switching to editMenu disable selection
@@ -124,22 +132,30 @@ void pollSDL(){
 				lastKey = e.key.keysym.sym;
 				switch(e.key.keysym.sym){
 					case SDLK_ESCAPE:
-//						objects[2].yPos = 0;
+						ball.state.xPos = 0;
+						ball.state.yPos = 2;
+						ball.state.ySpe = 0;
+						ball.state.xSpe = 0;
+						//objects[2].yPos = 0;
 	//				objects[2].yPos = 300;
 	//					objects[2].ySpeed = 0;
 						break;
 					case SDLK_a:
-						forceMatrix[0][0][0] = 2;
+						ball.state.xSpe = 10;
+//						forceMatrix[0][0][0] = 20;
 						break;
 					case SDLK_d:
-						forceMatrix[0][0][0] = -2;
+						ball.state.xSpe = -10;
+//						forceMatrix[0][0][0] = -20;
 
 						break;
 					case SDLK_w:
-						forceMatrix[0][0][1] = 2;
+						ball.state.ySpe = 10;
+//						forceMatrix[0][0][1] = 20;
 						break;
 					case SDLK_s:
-						forceMatrix[0][0][1] = -2;
+						ball.state.ySpe = -10;
+//						forceMatrix[0][0][1] = -20;
 						break;
 					case SDLK_p:
 						plotSelectionMenu = 1;
