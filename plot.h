@@ -1,6 +1,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
 #define PLOT_TEXT_SIZE 24
 #define MAX_PLOT_COUNT 3

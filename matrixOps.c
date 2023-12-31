@@ -11,7 +11,7 @@ void printMatrix(Matrix *mat){
 	}
 }
 void initMatrix(Matrix *mat, unsigned int rows, unsigned int cols){
-	double* tmp = (double*) malloc(sizeof(double) * rows * cols);
+	double* tmp = (double*) calloc(sizeof(double), rows * cols);
 	if(tmp == NULL)
 		return;
 	mat->data = tmp;
@@ -27,7 +27,10 @@ void freeMatrix(Matrix *mat){
 double getElement(Matrix *mat, unsigned int row, unsigned int col){
 	unsigned int index;
 	
-	index = col + row * mat->cols;
+	if(mat->transposed)
+		index = row + col * mat->cols;
+	else
+		index = col + row * mat->cols;
 	
 	if( col < mat->cols && row < mat->rows)
 		return *(mat->data+index);
@@ -38,14 +41,17 @@ double getElement(Matrix *mat, unsigned int row, unsigned int col){
 bool setElement(Matrix *mat, unsigned int row, unsigned int col, double val){
 	unsigned int index;
 	
-	index = col + row * mat->cols;
+	if(mat->transposed)
+		index = row + col * mat->cols;
+	else
+		index = col + row * mat->cols;
 		
 	if(index < mat->cols * mat->rows){
 		*(mat->data+index) = val;
-		return true;
+		return NO_ERROR;
 	}
 	else
-		return false;
+		return ERROR;
 }
 
 bool matrixMultiply(Matrix *A, Matrix *B, Matrix *RES){
@@ -53,20 +59,20 @@ bool matrixMultiply(Matrix *A, Matrix *B, Matrix *RES){
 	double tempSum = 0;
 	
 	//Check if multiplication is possible
-	if(A->cols != B->rows || A->rows != B->cols)
-		return false;
+	if(A->cols != B->rows)
+		return ERROR;
 	//Do not check the result matrix as it could be larger then in needs
 
-	for(iOut = 0; iOut < A->cols; iOut ++){
-		for(jOut = 0; jOut < B->rows; jOut++){
+	for(iOut = 0; iOut < A->rows; iOut ++){
+		for(jOut = 0; jOut < B->cols; jOut++){
 			tempSum = 0;
-			for(i = 0; i < A->rows; i++)
-				tempSum += getElement(A, i, jOut) * getElement(B, iOut, i);
+			for(i = 0; i < A->cols; i++)
+				tempSum += getElement(A, iOut, i) * getElement(B, i, jOut);
 			setElement(RES, iOut, jOut, tempSum);
 		}	
 	}
 
-	return true;
+	return NO_ERROR;
 }
 
 void transpose(Matrix *A){
@@ -80,12 +86,50 @@ void transpose(Matrix *A){
 bool copyMat(Matrix *A, Matrix *B){
 	unsigned int i, j;
 	if(A->cols != B->cols || A->rows != B->rows)	
-		return false;
+		return  ERROR;
 	
 	for( i = 0; i < A->rows; i ++){
 		for( j = 0; j < A->cols; j ++){
 			setElement(B, i, j, getElement(A, i, j));
 		}	
 	}	
-	return true;
+	return  NO_ERROR;
+}
+
+bool scaleMat(Matrix *A, Matrix *B, double scaling){
+	unsigned int i, j;
+	if(A->cols != B->cols || A->rows != B->rows)	
+		return  ERROR;
+	
+	for( i = 0; i < A->rows; i ++){
+		for( j = 0; j < A->cols; j ++){
+			setElement(B, i, j, scaling * getElement(A, i, j));
+		}	
+	}	
+	return  NO_ERROR;
+}
+
+bool addMatrix(Matrix *A, Matrix *B, Matrix *C){
+	unsigned int i, j;
+	
+	if(A->cols != B->cols || A->rows != B->rows)
+		return  ERROR;
+
+	for( i = 0; i < A->rows; i ++){
+		for( j = 0; j < A->cols; j ++){
+			setElement(C, i, j, getElement(A, i, j) + getElement(B, i, j));
+		}	
+	}
+	return  NO_ERROR;	
+}
+
+void mat2double(Matrix *A, double out[A->rows][A->cols]){
+	unsigned int i, j;
+	double tmp;
+	for( i = 0; i < A->rows; i ++){
+		for( j = 0; j < A->cols; j ++){
+			tmp = getElement(A, i, j);
+			out[i][j] = tmp;
+		}	
+	}
 }

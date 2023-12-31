@@ -1,7 +1,13 @@
+#define SDL_MAIN_HANDLED
+
 #include <stdio.h> 
+#include <stdlib.h>
 #include <stdbool.h> 
+#include <math.h>
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+
 #include "plot.h"
 
 #define SCREEN_WIDTH 1000
@@ -21,6 +27,19 @@ typedef struct {
 	unsigned char dispB;
 	unsigned int id;
 } SolidRect;
+
+enum {
+	X_DIM,
+	Y_DIM
+};
+enum {
+	EXTERNAL_FORCE,
+	CONSTRAINT_FORCE
+};
+enum {
+	NO_ERROR,
+	ERROR
+};
 
 /*
 typedef struct {

@@ -4,11 +4,12 @@
 #include "matrixOps.h"
 #include <math.h>
 
-#define TIMESTEP 0.00001 //In seconds
+#define EXT_FORCE_MODULUS 50
+#define TIMESTEP 0.001 //In seconds
 
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
-double forceMatrix[MAX_OBJS][MAX_OBJS][DIMENSIONS];	
+double forceMatrix[2][MAX_OBJS][DIMENSIONS];	
 char initSDL();
 void pollSDL();
 	
@@ -31,13 +32,13 @@ int main(int argc, const char *argv){
 //	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
 	initPlot(&genPlot[2], 200,   150, 500, 400, 200, "Energy", rend);
 	
-	genPlot[2].updateRate = 100;
+	genPlot[2].updateRate = 10;
 	
 	initRigidBall(&ball, 0.5, 1);	
 
 	
-	ball.state.yPos = 2;
-	ball.state.xPos = 0;
+	ball.state.yPos = 0;
+	ball.state.xPos = 2;
 
 /*
 	Matrix A, B, C;
@@ -63,7 +64,8 @@ int main(int argc, const char *argv){
 	Constraint constraints[1];
 	
 	initConstraints(&constraints[0], getTraj, getJacob, getJacob2);
-	solveConstraints(constraints, 1, &ball.state, forceMatrix);
+
+
 
 	while(!quit){
 			
@@ -75,6 +77,7 @@ int main(int argc, const char *argv){
 		
 		odeSolve(&ball.state, forceMatrix, TIMESTEP, objCount);
 		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
+		solveConstraints(constraints, 1, &ball.state, forceMatrix);
 
 		double speed = ball.state.xSpe*ball.state.xSpe + ball.state.ySpe*ball.state.ySpe;
 		speed = sqrt(speed); 
@@ -82,13 +85,6 @@ int main(int argc, const char *argv){
 //		printRigidBallState(&ball);
 		drawPlot(&genPlot[2], energy);
 //		printForce(forceMatrix, objCount);	
-
-		solveConstraints(constraints, 1, &ball.state, forceMatrix);
-
-
-
-
-
 
 
 		if(plotSelectionMenu){
@@ -132,30 +128,28 @@ void pollSDL(){
 				lastKey = e.key.keysym.sym;
 				switch(e.key.keysym.sym){
 					case SDLK_ESCAPE:
-						ball.state.xPos = 0;
-						ball.state.yPos = 2;
-						ball.state.ySpe = 0;
-						ball.state.xSpe = 0;
+						forceMatrix[0][0][0] = 0;
+						forceMatrix[0][0][1] = 0;
 						//objects[2].yPos = 0;
 	//				objects[2].yPos = 300;
 	//					objects[2].ySpeed = 0;
 						break;
 					case SDLK_a:
-						ball.state.xSpe = 10;
-//						forceMatrix[0][0][0] = 20;
+//						ball.state.xSpe = 10;
+						forceMatrix[EXTERNAL_FORCE][0][X_DIM] = EXT_FORCE_MODULUS;
 						break;
 					case SDLK_d:
-						ball.state.xSpe = -10;
-//						forceMatrix[0][0][0] = -20;
+//						ball.state.xSpe = -10;
+						forceMatrix[EXTERNAL_FORCE][0][X_DIM] =  -1 * EXT_FORCE_MODULUS;
 
 						break;
 					case SDLK_w:
-						ball.state.ySpe = 10;
-//						forceMatrix[0][0][1] = 20;
+//						ball.state.ySpe = 10;
+						forceMatrix[EXTERNAL_FORCE][0][Y_DIM] = EXT_FORCE_MODULUS;
 						break;
 					case SDLK_s:
-						ball.state.ySpe = -10;
-//						forceMatrix[0][0][1] = -20;
+//						ball.state.ySpe = -10;
+						forceMatrix[EXTERNAL_FORCE][0][Y_DIM] = -1 * EXT_FORCE_MODULUS;
 						break;
 					case SDLK_p:
 						plotSelectionMenu = 1;
@@ -207,7 +201,7 @@ void initForceMat(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount
 double getTotForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int id ,int objCount, int  dimId){
 	double totForce = 0;
 	int i;
-	for(i=0; i<objCount; i++){
+	for(i=0; i<2; i++){
 		totForce += forceMat[i][id][dimId];
 	}
 	return totForce;
