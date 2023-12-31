@@ -31,7 +31,7 @@ typedef struct {
 void printRigidBallState(RigidBall *ball);
 void initRigidBall(RigidBall *ball, double radius, double mass);
 void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW);
-void odeSolve(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount);
-
+void stepTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, double *simTime);
+double odeSolve(double fun, double funDer, double funDerDer, double dT, double *simTime);
 
 #endif

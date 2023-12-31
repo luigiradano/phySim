@@ -125,11 +125,16 @@ bool addMatrix(Matrix *A, Matrix *B, Matrix *C){
 
 void mat2double(Matrix *A, double out[A->rows][A->cols]){
 	unsigned int i, j;
-	double tmp;
 	for( i = 0; i < A->rows; i ++){
 		for( j = 0; j < A->cols; j ++){
-			tmp = getElement(A, i, j);
-			out[i][j] = tmp;
+			out[i][j] = getElement(A, i, j);
 		}	
+	}
+}
+
+void mat2doubleVec(Matrix *A, double out[]){
+	unsigned int i;
+	for( i = 0; i < A->rows; i ++){
+			out[i] = getElement(A, i, 0);
 	}
 }

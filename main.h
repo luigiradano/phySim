@@ -14,7 +14,7 @@
 #define SCREEN_HEIGHT 800
 #define MAX_OBJS 5
 #define DIMENSIONS 2
-#define PLOT_COUNT 3
+#define PLOT_COUNT 2
 
 typedef struct {
 	float mass;

@@ -4,8 +4,8 @@
 #include "matrixOps.h"
 #include <math.h>
 
-#define EXT_FORCE_MODULUS 50
-#define TIMESTEP 0.001 //In seconds
+#define EXT_FORCE_MODULUS 5
+#define TIMESTEP 0.01 //In seconds
 
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
@@ -16,13 +16,16 @@ void pollSDL();
 unsigned const int objCount = 3;
 SDL_Window *window;
 SDL_Renderer *rend;
+//Stuff for pltos
 bool plotSelectionMenu = 0;
 bool plotEditMenu = 0;
 unsigned int lastKey;
 SDL_Point clickPos;
+
 bool quit = 0; //Variable to exit gracefully from program
 
 RigidBall ball;
+double simulationTime = 0;
 //MAIN
 int main(int argc, const char *argv){
 	
@@ -30,9 +33,8 @@ int main(int argc, const char *argv){
 	
 //	initPlot(&genPlot[0], 400.0, 150,   0, 400, 200, "Speed", rend)
 //	initPlot(&genPlot[1], 2000,  150, 250, 400, 200, "Force", rend);
-	initPlot(&genPlot[2], 200,   150, 500, 400, 200, "Energy", rend);
-	
-	genPlot[2].updateRate = 10;
+	initPlot(&genPlot[0], 50,   0, 0, 1000, 200, "Energy", rend);
+
 	
 	initRigidBall(&ball, 0.5, 1);	
 
@@ -63,8 +65,7 @@ int main(int argc, const char *argv){
 */
 	Constraint constraints[1];
 	
-	initConstraints(&constraints[0], getTraj, getJacob, getJacob2);
-
+	//initConstraints(&constraints[0], getTraj, getJacob, getJacob2);
 
 
 	while(!quit){
@@ -75,7 +76,7 @@ int main(int argc, const char *argv){
 		SDL_RenderClear(rend);
 		
 		
-		odeSolve(&ball.state, forceMatrix, TIMESTEP, objCount);
+		stepTime(&ball.state, forceMatrix, TIMESTEP, objCount, &simulationTime);
 		drawRigidBall(rend, &ball, SCREEN_HEIGHT, SCREEN_WIDTH);
 		solveConstraints(constraints, 1, &ball.state, forceMatrix);
 
@@ -83,7 +84,7 @@ int main(int argc, const char *argv){
 		speed = sqrt(speed); 
 		double energy = 0.5 * ball.state.mass * pow(speed, 2);
 //		printRigidBallState(&ball);
-		drawPlot(&genPlot[2], energy);
+		drawPlot(&genPlot[0], energy);
 //		printForce(forceMatrix, objCount);	
 
 
@@ -130,9 +131,9 @@ void pollSDL(){
 					case SDLK_ESCAPE:
 						forceMatrix[0][0][0] = 0;
 						forceMatrix[0][0][1] = 0;
-						//objects[2].yPos = 0;
-	//				objects[2].yPos = 300;
-	//					objects[2].ySpeed = 0;
+//						objects[2].yPos = 0;
+//						objects[2].yPos = 300;
+//						objects[2].ySpeed = 0;
 						break;
 					case SDLK_a:
 //						ball.state.xSpe = 10;

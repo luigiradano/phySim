@@ -154,7 +154,7 @@ bool drawSelectMenu(SDL_Renderer *ren, SDL_Point mousePos){
 	int i = 0;
 	bool selectFlag = 0;
 	while(i < plotCount && !selectFlag){
-		if( SDL_PointInRect(&mousePos, &genPlot[i].dispRect)){
+		if(SDL_PointInRect(&mousePos, &genPlot[i].dispRect)){
 			selectFlag = 1;
 			selectPlot = i;
 		}

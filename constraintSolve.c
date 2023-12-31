@@ -8,13 +8,10 @@
 #define MAX_FORCE 1E20
 
 #define TRAJ_SMOOTH 1
-#define SPED_SMOOTH 1000
+#define SPED_SMOOTH 0.1
 
 #define DEBUG_FORCES
-#define DEBUG_INPUTS
-#define DEBUG_RIGHT
-#define DEBUG_JACOB
-#define DEBUG_LEFT
+
 
 //JACOBIAN COMPUTATION INSTRUCTIOS
 void getTraj(double x, double y, Matrix *RES){
@@ -221,7 +218,7 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		//Solve system
 		double leSi[1][1], riSi[1], res[1];
 
-		mat2double(&right, riSi);
+		mat2doubleVec(&right, riSi);
 		mat2double(&left, leSi);
 
 #ifdef DEBUG_SYSTEM

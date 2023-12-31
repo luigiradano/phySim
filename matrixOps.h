@@ -18,5 +18,6 @@ bool addMatrix(Matrix *A, Matrix *B, Matrix *C);
 bool scaleMat(Matrix *A, Matrix *B, double scaling);
 void transpose(Matrix *A);
 void mat2double(Matrix *A, double out[A->rows][A->cols]);
+void mat2doubleVec(Matrix *A, double out[]);
 bool copyMat(Matrix *A, Matrix *B);
 #endif
