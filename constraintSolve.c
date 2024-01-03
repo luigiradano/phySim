@@ -7,26 +7,40 @@
 #define OSC_CUTOUT 1
 #define MAX_FORCE 1E20
 
-#define TRAJ_SMOOTH 1
-#define SPED_SMOOTH 0.1
+#define TRAJ_SMOOTH 5
+#define SPED_SMOOTH 0.001
 
-#define DEBUG_FORCES
-
+/*
+#define DEBUG_LEFT
+#define DEBUG_JACOB
+#define DEBUG_RIGHT
+#define DEBUG_RESULT
+*/
 
 //JACOBIAN COMPUTATION INSTRUCTIOS
-void getTraj(double x, double y, Matrix *RES){
-	setElement(RES, 0, 0, pow(x, 2) + pow(y, 2) - 4);
+void getTraj(double xA, double yA, double xB, double yB, Matrix *RES){
+	setElement(RES, 0, 0, pow(xA, 2) + pow(yA, 2) - 0.25);
+	setElement(RES, 0, 1, pow(xA-xB, 2) + pow(yA-yB, 2) - 0.25);
 }
-void getJacob(double x, double y, Matrix *RES){
-	double temp;
-	temp = 2*x;
-	setElement(RES, 0, 0, temp);
-	temp = 2*y;
-	setElement(RES, 0, 1, temp);
+void getJacob(double xA, double yA, double xB, double yB, Matrix *RES){
+	setElement(RES, 0, 0, 2 * xA);
+	setElement(RES, 0, 1, 2 * yA);
+	setElement(RES, 0, 2, 0);
+	setElement(RES, 0, 3, 0);
+	setElement(RES, 1, 0, 2 * (xA - xB));
+	setElement(RES, 1, 1, 2 * (yA - yB));
+	setElement(RES, 1, 2, 2 * (xB - xA));
+	setElement(RES, 1, 3, 2 * (yB - yA));
 }
-void getJacob2(double x, double y, Matrix *RES){
-	setElement(RES, 0, 0, 2*(x));
-	setElement(RES, 0, 1, 2*(y));
+void getJacob2(double vxA, double vyA, double vxB, double vyB, Matrix *RES){
+	setElement(RES, 0, 0, 2 * vxA);
+	setElement(RES, 0, 1, 2 * vyA);
+	setElement(RES, 0, 2, 0);
+	setElement(RES, 0, 3, 0);
+	setElement(RES, 1, 0, 2 * (vxA - vxB));
+	setElement(RES, 1, 1, 2 * (vyA - vyB));
+	setElement(RES, 1, 2, 2 * (vxB - vxA));
+	setElement(RES, 1, 3, 2 * (vyB - vyA));
 }
 
 
@@ -103,45 +117,41 @@ setForce(forceMat, id, i, feedBack);
 }
 // SERIOUS CONSTRAINT SOLVER AHEAD
 void initConstraints(Constraint *con, double (*getC)(double x, double y), void (*getJacobian)(double x, double y, Matrix *RES), void (*getJacobian2)(double x, double y, Matrix *RES)){
-	con->getC = getC;
-	con->getJacobian = getJacobian;
-	con->getJacobian2 = getJacobian2;
+
 }
 
-void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
-		unsigned int i = 0;
+Matrix jacob, jacob2, mass, velocity, force, left, right, right1, right2, corrector, tmp, solVec;
+
+void initContraintMats( unsigned int objCount){
+		initMatrix(&jacob, objCount, objCount * DIMENSIONS);//Jacobian matrix
+		initMatrix(&jacob2, objCount, objCount * DIMENSIONS);//Time derivative of jacobian
+		initMatrix(&mass, DIMENSIONS * objCount, DIMENSIONS * objCount); //Mass matrix (ToBeImproved)
+		initMatrix(&velocity, DIMENSIONS * objCount, 1);//Velocity vector
+		initMatrix(&force, DIMENSIONS * objCount, 1);//Force vector
+		initMatrix(&left, objCount, objCount);//Left Matrix
+		initMatrix(&right, objCount, 1);//Right Matrix
+		initMatrix(&right1, objCount, 1);//Right 1st computation
+		initMatrix(&right2, objCount, 1);//Right 2nd computation
+		initMatrix(&corrector, objCount, 1);//Correction matrix
+		initMatrix(&tmp, objCount, DIMENSIONS * objCount); //Jacobian * Mass holder
+		initMatrix(&solVec, objCount, 1); //Solution vector for solved system
+
+}
+
+void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount){
 		bool errFlag = false;
 
-		system("CLS");
-		//ToDo: Move this stuff oudside cause allocation takes time (compiler probably optimizes this anyway)
-		Matrix jacob;	
-		initMatrix(&jacob, 1, 2);
-		Matrix jacob2; 
-		initMatrix(&jacob2, 1, 2);
+		unsigned int i, j;
 
-		Matrix mass;
-		initMatrix(&mass, 2, 2);
-		Matrix velocity;
-		initMatrix(&velocity, 2, 1);
-		Matrix force;
-		initMatrix(&force, 2, 1);
+		for(i = 0; i < objCount * DIMENSIONS; i += 2){
+			errFlag |= setElement(&force, i, 0, forceMat[EXTERNAL_FORCE][i/2][X_DIM]);
+			errFlag |= setElement(&force, i+1, 0, forceMat[EXTERNAL_FORCE][i/2][Y_DIM]);
+			errFlag |= setElement(&velocity, i, 0, state[i/2]->xSpe);
+			errFlag |= setElement(&velocity, i+1, 0, state[i/2]->ySpe);
+			errFlag |= setElement(&mass, i, i, 1/state[i/2]->mass);
+			errFlag |= setElement(&mass, i+1, i+1, 1/state[i/2]->mass);
+		}
 
-		Matrix left, right, right1, right2, corrector;
-		initMatrix(&left, 1, 1);
-		initMatrix(&right, 1, 1);
-		initMatrix(&right1, 1, 1);
-		initMatrix(&right2, 1, 1);
-		initMatrix(&corrector, 1, 1);
-
-		Matrix tmp;
-		initMatrix(&tmp, 1, 2);
-
-		errFlag |= setElement(&force, 0, 0, forceMat[EXTERNAL_FORCE][0][X_DIM]);
-		errFlag |= setElement(&force, 1, 0, forceMat[EXTERNAL_FORCE][0][Y_DIM]);
-		errFlag |= setElement(&velocity, 0, 0, state->xSpe);
-		errFlag |= setElement(&velocity, 1, 0, state->ySpe);
-		errFlag |= setElement(&mass, 0, 0, 1/state->mass);
-		errFlag |= setElement(&mass, 1, 1, 1/state->mass);
 
 		if(errFlag){
 			printf("Error assigning input data!\n");
@@ -154,11 +164,14 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		
 		printf("Velocity :\n");
 		printMatrix(&velocity);
+
+		printf("Masses :\n");
+		printMatrix(&mass);
 #endif
 
-		getJacob( state->xPos, state->yPos, &jacob );
-		getJacob2(state->xSpe, state->ySpe, &jacob2);		
-		getTraj(  state->xPos, state->yPos, &corrector);
+		getJacob( state[0]->xPos, state[0]->yPos, state[1]->xPos, state[1]->yPos, &jacob );
+		getJacob2( state[0]->xSpe, state[0]->ySpe, state[1]->xSpe, state[1]->ySpe, &jacob2 );
+		getTraj( state[0]->xPos, state[0]->yPos, state[1]->xPos, state[1]->yPos, &corrector );
 
 #ifdef DEBUG_JACOB
 		printf("Jacobian :\n");
@@ -200,7 +213,7 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		errFlag |= addMatrix(&right, &corrector, &right);
 
 		errFlag |= matrixMultiply(&jacob, &velocity, &corrector);
-		errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH); //Trajectory drift correction
+		errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH * simulationTime); //Trajectory drift correction
 		errFlag |= addMatrix(&right, &corrector, &right);
 
 		errFlag |= scaleMat(&right, &right, -1);
@@ -215,12 +228,6 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		printMatrix(&right);
 #endif
 
-		//Solve system
-		double leSi[1][1], riSi[1], res[1];
-
-		mat2doubleVec(&right, riSi);
-		mat2double(&left, leSi);
-
 #ifdef DEBUG_SYSTEM
 		printf("System Right eq:\n");
 		printMat(1, left.rows, riSi);
@@ -228,27 +235,31 @@ void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state
 		printMat(left.cols, left.rows, leSi);
 #endif
 		
-		if(solveSystem(left.cols, left.rows, leSi, riSi, res) == ERROR){
+		if(solveSystemMatrix(&right, &left, &solVec) == ERROR){
 			printf("Unsolvable system! Exiting\n");
 			return;
 		}
 			
+		
 
-		if( abs(getResidual(left.cols, left.rows, leSi, riSi, res)) > 20){
-			printf("Residual Too High! Exiting\n");
-			return;
-		}
-
-#ifdef DEBUG_SYSTEM
-		printf("Residual: %.2f\nSolution:\n", getResidual(left.cols, left.rows, leSi, riSi, res));
-		printMat(1, left.rows, res);
+#ifdef DEBUG_RESULT
+		printf("Result:\n");
+		printMatrix(&solVec);
 #endif
 
-		double tmpD;
-		tmpD =  getElement(&jacob, 0, 0);
-		forceMat[CONSTRAINT_FORCE][0][X_DIM] =  res[0] * tmpD;
-		tmpD =  getElement(&jacob, 0, 1);
-		forceMat[CONSTRAINT_FORCE][0][Y_DIM] =  res[0] * tmpD;
+		forceMat[CONSTRAINT_FORCE][0][X_DIM] =  getElement(&solVec, 0, 0) * getElement(&jacob, 0, X_DIM);
+		forceMat[CONSTRAINT_FORCE][0][Y_DIM] =  getElement(&solVec, 0, 0) * getElement(&jacob, 1, Y_DIM);
+		
+		forceMat[CONSTRAINT_FORCE][0][X_DIM] -=  getElement(&solVec, 1, 0) * getElement(&jacob, 0, X_DIM);
+		forceMat[CONSTRAINT_FORCE][0][Y_DIM] -=  getElement(&solVec, 1, 0) * getElement(&jacob, 1, Y_DIM);
+		
+		forceMat[CONSTRAINT_FORCE][1][X_DIM] =   getElement(&solVec, 1, 0) * getElement(&jacob, 0, X_DIM);
+		forceMat[CONSTRAINT_FORCE][1][Y_DIM] =   getElement(&solVec, 1, 0) * getElement(&jacob, 1, Y_DIM);
+
+
+		for(i = 0; i < objCount; i ++){
+			
+		}
 
 #ifdef DEBUG_FORCES
 	printf("%.3f Lambda\t%.3f X\t%.3f Y\n", res[0], forceMat[CONSTRAINT_FORCE][0][X_DIM], forceMat[CONSTRAINT_FORCE][0][Y_DIM]);

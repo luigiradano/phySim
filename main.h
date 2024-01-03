@@ -10,11 +10,13 @@
 
 #include "plot.h"
 
-#define SCREEN_WIDTH 1000
-#define SCREEN_HEIGHT 800
+#define SCREEN_WIDTH 1500
+#define SCREEN_HEIGHT 1000
 #define MAX_OBJS 5
 #define DIMENSIONS 2
 #define PLOT_COUNT 2
+
+extern double simulationTime;
 
 typedef struct {
 	float mass;

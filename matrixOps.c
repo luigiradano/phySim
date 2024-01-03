@@ -66,8 +66,12 @@ bool matrixMultiply(Matrix *A, Matrix *B, Matrix *RES){
 	for(iOut = 0; iOut < A->rows; iOut ++){
 		for(jOut = 0; jOut < B->cols; jOut++){
 			tempSum = 0;
-			for(i = 0; i < A->cols; i++)
-				tempSum += getElement(A, iOut, i) * getElement(B, i, jOut);
+			double a, b;
+			for(i = 0; i < A->cols; i++){
+				a = getElement(A, iOut, i);
+				b = getElement(B, i, jOut);
+				tempSum += a * b;
+			}
 			setElement(RES, iOut, jOut, tempSum);
 		}	
 	}

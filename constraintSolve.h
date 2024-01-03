@@ -4,21 +4,24 @@
 #include "rigidBody.h"
 #include "gSolve.h"
 
+typedef enum {
+	SET_RADIUS,
+} ConstraintType;
 
 typedef struct {
-	double (*getC)(double x, double y); //Function to get the constraint value
-	void (*getJacobian)(double x, double y, Matrix *RES); //Function to get the jacobian of the constraint
-	void (*getJacobian2)(double x, double y, Matrix *RES); //Function to get the time derivative of the jacobian 
-
-	
+	ConstraintType type;
+	Matrix jacobTrans;
+	Matrix jacob2Trans;
 } Constraint;
 
 
-void solveConstraints(Constraint *con, unsigned int consCount, RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]);
+void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount);
 void initConstraints(Constraint *con, double (*getC)(double x, double y), void (*getJacobian)(double x, double y, Matrix *RES), void (*getJacobian2)(double x, double y, Matrix *RES));
+void initContraintMats( unsigned int objCount);
 
-void getTraj(double x, double y, Matrix *RES);
-void getJacob(double x, double y, Matrix *RES);
-void getJacob2(double x, double y, Matrix *RES);
+void getJacob2(double vxA, double vyA, double vxB, double vyB, Matrix *RES);
+void getJacob(double xA, double yA, double xB, double yB, Matrix *RES);
+void getTraj(double xA, double yA, double xB, double yB, Matrix *RES);
+
 
 #endif

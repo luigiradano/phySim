@@ -1,7 +1,10 @@
 #ifndef RIGIDBODY_H
 #define RIGIDBODY_H
 
-#define PIXELS_PER_METER 100
+#define PIXELS_PER_METER 400
+#define X_OFFSET 0
+#define Y_OFFSET 0
+#define BALL_SIZE 20
 #define MAX_OBJS 5
 #define DIMENSIONS 2
 
@@ -28,10 +31,20 @@ typedef struct {
 	RigidState state;
 } RigidBall;
 
-void printRigidBallState(RigidBall *ball);
 void initRigidBall(RigidBall *ball, double radius, double mass);
-void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW);
-void stepTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, double *simTime);
-double odeSolve(double fun, double funDer, double funDerDer, double dT, double *simTime);
+
+void printRigidBallState(RigidBall *ball);
+
+void drawLink(SDL_Renderer *ren, RigidBall *ball, RigidBall *ball2,unsigned int winH, unsigned int winW);
+void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle);
+void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW, bool drawOriginLink);
+
+double getPotEne(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]);
+double getKinEne(RigidState *state);
+
+void setInitials(RigidState *states[], int objCount);
+void stepTime(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, double *simTime);
+void odeSolve(double *fun, double *funDer, double dT, unsigned int id, unsigned char dimension);
+
 
 #endif

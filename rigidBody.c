@@ -18,50 +18,231 @@ void printRigidBallState(RigidBall *ball){
 	printf("ID: %d\tX: %.3f\tY: %.3f\tX Speed:%.2f\tY Speed:%.2f\n", ball->state.id, ball->state.xPos, ball->state.yPos, ball->state.xSpe, ball->state.ySpe);
 }
 
-void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW){
+void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW, bool drawOriginLink){
 	SDL_Rect dispRect;
-	dispRect.x = winW/2 - ball->state.xPos * PIXELS_PER_METER - 25;
-	dispRect.y = winH/2 - ball->state.yPos * PIXELS_PER_METER - 25;
-	dispRect.h = 50; //ball->radius * PIXELS_PER_METER ;
-	dispRect.w = 50; //ball->radius * PIXELS_PER_METER ;
+	dispRect.x = winW/2 - ball->state.xPos * PIXELS_PER_METER - BALL_SIZE/2 + X_OFFSET;
+	dispRect.y = winH/2 - ball->state.yPos * PIXELS_PER_METER - BALL_SIZE/2 + Y_OFFSET;
+	dispRect.h = BALL_SIZE; //ball->radius * PIXELS_PER_METER ;
+	dispRect.w = BALL_SIZE; //ball->radius * PIXELS_PER_METER ;
 	
 	SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, 0xFF);
-	SDL_RenderDrawRect(ren, &dispRect);
-	SDL_RenderDrawLine(ren,  winW/2, winH/2, dispRect.x+25, dispRect.y+25);
+	SDL_RenderFillRect(ren, &dispRect);
+	
+	if(drawOriginLink)
+		SDL_RenderDrawLine(ren,  winW/2+ X_OFFSET, winH/2+ Y_OFFSET, dispRect.x + BALL_SIZE/2, dispRect.y + BALL_SIZE/2);
 }
 
-//Evaluates function at simTime, increasing dT time steps, takes the derivative of the current value and the previous value
-//Rk4 implementation
-double odeSolve(double fun, double funDer, double funDerDer, double dT, double *simTime){
-	double k1, k2, k3, k4;
+double getKinEne(RigidState *state){
+	//E_k = 0.5 * m * v^2
+	//v^2 = vx^2 + vy^2
+	return 0.5 * state->mass * pow(state->xSpe, 2) + pow(state->ySpe, 2);
+}
 
-	k1 = funDer;
-	k2 = funDer + funDerDer * (dT/2);
-	k3 = funDer + funDerDer * (dT/2);
-	k4 = funDer + funDerDer * dT;
+double getPotEne(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
+	//E_k = m * g * h
+	return -1 * state->yPos * forceMat[EXTERNAL_FORCE][state->id][Y_DIM]; 
+}
+/*
+	@brief Draws a link between ball and ball2
+*/
+void drawLink(SDL_Renderer *ren, RigidBall *ball, RigidBall *ball2,unsigned int winH, unsigned int winW){
+	
+	int x1 = winW/2 - ball->state.xPos * PIXELS_PER_METER + X_OFFSET;
+	int y1 = winH/2 - ball->state.yPos * PIXELS_PER_METER + Y_OFFSET;
+	
+	int x2 = winW/2 - ball2->state.xPos * PIXELS_PER_METER + X_OFFSET;
+	int y2 = winH/2 - ball2->state.yPos * PIXELS_PER_METER + Y_OFFSET;
+	
+	SDL_SetRenderDrawColor(ren, 0x00, 0x00, 0xFF, 0xFF);
+	SDL_RenderDrawLine(ren,  x1, y1, x2, y2);
+}
+/*
+	@brief Takes the current display position of each point along the ball trajectory points
+*/
+uint8_t r = 0, g = 255, b = 0, selected = 0;
+void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle){
+	
+	uint32_t *pixels;
+	int rowLen; //Each pixel takes 4 bytes
+	uint32_t w, h;
+
+	if(r == 255 )
+		selected = 1; //Dec R Inc G
+	else if( g == 255)
+		selected = 3; //Inc B Dec G
+	else if( b == 255)
+		selected = 4;//Inc R Dec B
+
+	switch (selected)
+	{
+	case 0:
+		g--;
+		r++;
+		break;
+	case 1:
+		g++;
+		r--;
+		break;
+	case 2:
+		g++;
+		b--;
+		break;
+	case 3:
+		g--;
+		b++;
+		break;
+	case 4:
+		r++;
+		b--;
+		break;
+	case 5:
+		r--;
+		b++;
+		break;
+	}
+	
+
+	SDL_LockTexture(trajHandle, NULL, (void**) &pixels, &rowLen);
+	SDL_QueryTexture(trajHandle, NULL, NULL, &w, &h);
+	
+	int x1 = w/2 - ball->state.xPos * PIXELS_PER_METER + X_OFFSET;
+	int y1 = h/2 - ball->state.yPos * PIXELS_PER_METER + Y_OFFSET;
+	
+	rowLen /= 4;
+
+	if(!(x1 < 0 || y1 < 0 || x1 > w || y1 > h))
+		pixels[(y1 * rowLen) + x1] =  b | g << 8 | r << 16;
+
+	SDL_UnlockTexture(trajHandle);
+	
+	SDL_RenderCopy(ren, trajHandle, NULL, NULL);
+
+}
+
+
+int getNextIndex(int currIndex, int delta){
+	if(currIndex + delta < 4)
+		return currIndex + delta;
+	else if(currIndex + delta < 0)
+		return 4 + currIndex + delta;
+	else
+		return 4 - currIndex + delta;
+}
+
+/*
+	Enum establishing the modes of stepTime since we want to update the position every 4 iterations
+*/
+enum{
+	GET_K1,
+	GET_K2,
+	GET_K3,
+	GET_K4,
+	COMPUTE
+};
+
+uint8_t stepMode[MAX_OBJS][DIMENSIONS];
+double k[4][MAX_OBJS][DIMENSIONS], kD[4][MAX_OBJS][DIMENSIONS];
+double posAcc[MAX_OBJS][DIMENSIONS]; //Holds the positions, used to update the value in between stepMode changes
+double posIni[MAX_OBJS][DIMENSIONS]; //Holds the initial positions, used to compute the final position
+double speAcc[MAX_OBJS][DIMENSIONS]; //Holds the speeds, used to update the value in between stepMode changes
+double speIni[MAX_OBJS][DIMENSIONS]; //Holds the initial speeds, used to compute the final position
+
+void setInitials(RigidState *states[], int objCount){
+	uint32_t i, j;
+	for(i = 0; i < objCount; i ++){
+		
+		posIni[i][X_DIM] = states[i]->xPos;
+		posIni[i][Y_DIM] = states[i]->yPos;
+		speIni[i][X_DIM] = states[i]->xSpe;
+		speIni[i][Y_DIM] = states[i]->ySpe;
+		
+	}
+}
+
+void stepSingleTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, uint16_t dimension){
+	
+	double acc = getTotForce(forceMat, state->id, objCount, dimension) / state->mass;
+
+	double *speed, *pos;
+
+
+	//Step the mode only when X coordinate is recieved
+	if(stepMode[state->id][dimension] < COMPUTE)
+		stepMode[state->id][dimension] ++;
+	else
+		stepMode[state->id][dimension] = 0;
+
+	
+	switch(dimension){
+		case X_DIM:
+			speed = &state->xSpe;
+			pos = &state->xPos;
+			break;
+		case Y_DIM:
+			speed = &state->ySpe;
+			pos = &state->yPos;
+			break;
+	}
+	
+
+	switch(stepMode[state->id][dimension]){
+		case GET_K1:
+			k[0][state->id][dimension] = *speed;//speIni[state->id][dimension];
+			kD[0][state->id][dimension] = acc;
+			break;
+
+		case GET_K2:
+			k[1][state->id][dimension] = *speed + kD[0][state->id][dimension] * dT/2;
+			kD[1][state->id][dimension] = acc;
+			break;
+
+		case GET_K3:
+			k[2][state->id][dimension] = *speed + kD[1][state->id][dimension] * dT/2;
+			kD[2][state->id][dimension] = acc;
+			break;
+
+		case GET_K4:
+			k[3][state->id][dimension] = *speed + kD[2][state->id][dimension] * dT;
+			kD[3][state->id][dimension] = acc;
+			break;
+			
+		case COMPUTE:
+			//printf("Id: %d\tDim: %d\tAcc: %.3f\n", state->id, dimension, acc);
+
+			posIni[state->id][dimension] = *pos; //Update initial states
+			speIni[state->id][dimension] = *speed;
+
+			*pos = posIni[state->id][dimension] + (dT/6) * (k[0][state->id][dimension] + 2*k[1][state->id][dimension] + 2*k[2][state->id][dimension] + k[3][state->id][dimension]); //Perform this computation with the original value (since *pos will have already been increased)
+			*speed = speIni[state->id][dimension] + (dT/6) * (kD[0][state->id][dimension] + 2*kD[1][state->id][dimension] + 2*kD[2][state->id][dimension] + kD[3][state->id][dimension]);
+			
+			break;
+	}
+	
+	posAcc[state->id][dimension] = posIni[state->id][dimension] + (dT/6) * (k[0][state->id][dimension] + 2*k[1][state->id][dimension] + 2*k[2][state->id][dimension] + k[3][state->id][dimension]);	
+	speAcc[state->id][dimension] = speIni[state->id][dimension] + (dT/6) * (kD[0][state->id][dimension] + 2*kD[1][state->id][dimension] + 2*kD[2][state->id][dimension] + kD[3][state->id][dimension]);
+
+	if(stepMode[state->id][dimension] != COMPUTE){
+		*pos = posAcc[state->id][dimension];
+		//*speed = speAcc[state->id][dimension];
+	}
+		
+
+}
+
+/*
+	@brief	Steps the time, solves the differential equations to update the state's position and velocities
+*/
+void stepTime(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, double *simTime){
+
+	uint32_t i, j;
+
+	for( i = 0; i < objCount; i++){
+		for( j = 0; j < DIMENSIONS; j++)
+			stepSingleTime(state[i], forceMat, dT, objCount, j);
+	}
 
 	*simTime += dT;
-
-	return fun + (dT/6) * (k1 + 2*k2 + 2*k3 + k4);
-}
-
-void stepTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], double dT, int objCount, double *simTime){
-/*
-	state->xPos += state->xSpe * dT;
-	state->yPos += state->ySpe * dT;
-*/
-
-
-	double xAcc = getTotForce(forceMat, state->id, objCount, 0) / state->mass;
-	double yAcc = getTotForce(forceMat, state->id, objCount, 1) / state->mass;
 	
-//	printf("\t%.2fX\t%.2fY\n", xAcc, yAcc);	
-
-	state->xSpe += xAcc * dT;
-	state->ySpe += yAcc * dT;
-
-	state->xPos = odeSolve(state->xPos, state->xSpe, xAcc, dT, simTime);
-	state->yPos = odeSolve(state->yPos, state->ySpe, yAcc, dT, simTime);
 	
 }
 

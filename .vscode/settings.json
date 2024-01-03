@@ -5,5 +5,8 @@
         "constraintsolve.h": "c",
         "gsolve.h": "c",
         "matrixops.h": "c"
-    }
+    },
+    "cSpell.enableFiletypes": [
+        "!c"
+    ]
 }

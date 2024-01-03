@@ -6,8 +6,8 @@
 #define MIN_PLOT_W 50
 
 TTF_Font *Sans;
-SDL_Color Black = {0,0,0};
-SDL_Color PlotTextColor = {0,0,0};
+SDL_Color Black = {0xFF,0xFF,0xFF};
+SDL_Color PlotTextColor = {0xFF,0xFF,0xFF};
 SDL_Color PlotLineColor = {0,0,0};
 
 BarPlot genPlot[MAX_PLOT_COUNT];
@@ -57,15 +57,15 @@ void initPlot(BarPlot *plot, float range, int x, int y, int w, int h, char *titl
 	plot->vertScaleRange = ((plot->dispRect.h) / (plot->max - plot->min));	
 	plot->xAxisY = (plot->dispRect.y + plot->dispRect.h/2);
 	//Color Set Up
-	plot->lineColor.r = 0;
-	plot->lineColor.g = 0;
-	plot->lineColor.b = 0;
-	plot->textColor.r = 0;
-	plot->textColor.g = 0;
-	plot->textColor.b = 0;
-	plot->bgColor.r   = 0xFF;
-	plot->bgColor.g   = 0xFF;
-	plot->bgColor.b   = 0xFF;
+	plot->lineColor.r = 0xFF;
+	plot->lineColor.g = 0xFF;
+	plot->lineColor.b = 0xFF;
+	plot->textColor.r = 0xFF;
+	plot->textColor.g = 0xFF;
+	plot->textColor.b = 0xFF;
+	plot->bgColor.r   = 0x00;
+	plot->bgColor.g   = 0x00;
+	plot->bgColor.b   = 0x00;
 	//Other Internal stuff needed
 	plot->pointSet = (SDL_Point*) malloc(plot->pointCount * sizeof(SDL_Point));
 	plot->rend = ren;
