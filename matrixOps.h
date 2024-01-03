@@ -20,4 +20,9 @@ void transpose(Matrix *A);
 void mat2double(Matrix *A, double out[A->rows][A->cols]);
 void mat2doubleVec(Matrix *A, double out[]);
 bool copyMat(Matrix *A, Matrix *B);
+bool swapColumn(Matrix *A, uint32_t colA, uint32_t colB);
+bool swapRow(Matrix *A, uint32_t rowA, uint32_t rowB);
+int getColMaxAbs(Matrix *A, uint32_t colIndex);
+int getRowMaxAbs(Matrix *A, uint32_t rowIndex);
+double getNorm2(Matrix *A);
 #endif

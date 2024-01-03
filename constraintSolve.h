@@ -4,6 +4,8 @@
 #include "rigidBody.h"
 #include "gSolve.h"
 
+extern double residual;
+
 typedef enum {
 	SET_RADIUS,
 } ConstraintType;

@@ -8,8 +8,11 @@
 #define MAX_FORCE 1E20
 
 #define TRAJ_SMOOTH 5
-#define SPED_SMOOTH 0.001
+#define SPED_SMOOTH 0.5
 
+double residual;
+
+//#define DEBUG_RESULT
 /*
 #define DEBUG_LEFT
 #define DEBUG_JACOB
@@ -42,8 +45,6 @@ void getJacob2(double vxA, double vyA, double vxB, double vyB, Matrix *RES){
 	setElement(RES, 1, 2, 2 * (vxB - vxA));
 	setElement(RES, 1, 3, 2 * (vyB - vyA));
 }
-
-
 
 //Get distance from bottom of id to top of i
 float getDistanceTopBtm(SolidRect *rectSet, int id, int i){
@@ -143,6 +144,19 @@ void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSION
 
 		unsigned int i, j;
 
+		//Since the 2 masses are "solidali" we need to have common forces
+		
+		//	forceMat[EXTERNAL_FORCE][1][X_DIM] += getTotForce(forceMat, 0, objCount, X_DIM);
+		//	forceMat[EXTERNAL_FORCE][1][Y_DIM] += getTotForce(forceMat, 0, objCount, Y_DIM);
+
+		// double totX = getTotForce(forceMat, 1, objCount, X_DIM) + getTotForce(forceMat, 0, objCount, X_DIM);
+		// double totY = getTotForce(forceMat, 1, objCount, Y_DIM) + getTotForce(forceMat, 0, objCount, Y_DIM);
+
+		// forceMat[EXTERNAL_FORCE][0][X_DIM] += totX/2;
+		// forceMat[EXTERNAL_FORCE][1][X_DIM] += totX/2;
+		// forceMat[EXTERNAL_FORCE][0][Y_DIM] += totY/2;
+		// forceMat[EXTERNAL_FORCE][1][Y_DIM] += totY/2;
+
 		for(i = 0; i < objCount * DIMENSIONS; i += 2){
 			errFlag |= setElement(&force, i, 0, forceMat[EXTERNAL_FORCE][i/2][X_DIM]);
 			errFlag |= setElement(&force, i+1, 0, forceMat[EXTERNAL_FORCE][i/2][Y_DIM]);
@@ -213,7 +227,7 @@ void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSION
 		errFlag |= addMatrix(&right, &corrector, &right);
 
 		errFlag |= matrixMultiply(&jacob, &velocity, &corrector);
-		errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH * simulationTime); //Trajectory drift correction
+		errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH); //Trajectory drift correction
 		errFlag |= addMatrix(&right, &corrector, &right);
 
 		errFlag |= scaleMat(&right, &right, -1);
@@ -243,22 +257,15 @@ void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSION
 		
 
 #ifdef DEBUG_RESULT
-		printf("Result:\n");
+		residual = getResidualMatrix(&right, &left, &solVec);
+		printf("Residual: %.30f\tResult:\n",  residual);
 		printMatrix(&solVec);
 #endif
 
-		forceMat[CONSTRAINT_FORCE][0][X_DIM] =  getElement(&solVec, 0, 0) * getElement(&jacob, 0, X_DIM);
-		forceMat[CONSTRAINT_FORCE][0][Y_DIM] =  getElement(&solVec, 0, 0) * getElement(&jacob, 1, Y_DIM);
 		
-		forceMat[CONSTRAINT_FORCE][0][X_DIM] -=  getElement(&solVec, 1, 0) * getElement(&jacob, 0, X_DIM);
-		forceMat[CONSTRAINT_FORCE][0][Y_DIM] -=  getElement(&solVec, 1, 0) * getElement(&jacob, 1, Y_DIM);
-		
-		forceMat[CONSTRAINT_FORCE][1][X_DIM] =   getElement(&solVec, 1, 0) * getElement(&jacob, 0, X_DIM);
-		forceMat[CONSTRAINT_FORCE][1][Y_DIM] =   getElement(&solVec, 1, 0) * getElement(&jacob, 1, Y_DIM);
-
-
 		for(i = 0; i < objCount; i ++){
-			
+			forceMat[CONSTRAINT_FORCE][i][X_DIM] =  getElement(&solVec, i, 0) * getElement(&jacob, i, X_DIM);
+			forceMat[CONSTRAINT_FORCE][i][Y_DIM] =  getElement(&solVec, i, 0) * getElement(&jacob, i, Y_DIM);
 		}
 
 #ifdef DEBUG_FORCES

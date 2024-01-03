@@ -137,8 +137,91 @@ void mat2double(Matrix *A, double out[A->rows][A->cols]){
 }
 
 void mat2doubleVec(Matrix *A, double out[]){
-	unsigned int i;
+		unsigned int i;
 	for( i = 0; i < A->rows; i ++){
 			out[i] = getElement(A, i, 0);
 	}
+}
+
+bool swapColumn(Matrix *A, uint32_t colA, uint32_t colB){
+	uint32_t i;
+	double tmp;
+	if(colA > A->cols || colB > A->cols)
+		return ERROR;
+	for(i = 0; i < A->rows; i ++){
+		tmp = getElement(A, i, colA);
+		setElement(A, i, colA, getElement(A, i, colB));
+		setElement(A, i, colB, tmp);
+	}
+	return NO_ERROR;
+}
+
+bool swapRow(Matrix *A, uint32_t rowA, uint32_t rowB) {
+  uint32_t j;
+  double tmp;
+
+  if (rowA >= A->rows || rowB >= A->rows) 
+    return ERROR;
+  
+  for (j = 0; j < A->cols; j++) {
+    tmp = getElement(A, rowA, j);
+    setElement(A, rowA, j, getElement(A, rowB, j));
+    setElement(A, rowB, j, tmp);
+  }
+
+  return NO_ERROR;
+}
+
+/*
+	@brief Returns the Row Index of the max in absolute value inside the specified column
+*/
+int getColMaxAbs(Matrix *A, uint32_t colIndex){
+	uint32_t i;
+	int maxIndex = -1;
+	double max = -1;
+
+	if(colIndex > A->cols)
+		return ERROR;
+	
+	for(i = 0; i < A->rows; i ++){
+		if( abs(getElement(A, i, colIndex)) > max){
+			maxIndex = i;
+			max = abs(getElement(A, i, colIndex));
+		}
+	}
+
+	return maxIndex;
+}
+/*
+    @brief Returns the Row Index of the max in absolute value inside the specified row
+*/
+int getRowMaxAbs(Matrix *A, uint32_t rowIndex){
+    uint32_t j;
+    int maxIndex = -1;
+    double max = -1;
+
+    if(rowIndex > A->rows)
+        return ERROR;
+    
+    for(j = 0; j < A->cols; j ++){
+        if(abs(getElement(A, rowIndex, j)) > max){
+            maxIndex = j;
+            max = abs(getElement(A, rowIndex, j));
+        }
+    }
+
+    return maxIndex;
+}
+/*
+    @brief Returns the L2 norm of the matrix
+*/
+double getNorm2(Matrix *A){
+    double norm2 = 0;
+    for(uint32_t i = 0; i < A->rows; i ++){
+        for(uint32_t j = 0; j < A->cols; j ++){
+            norm2 += getElement(A, i, j) * getElement(A, i, j);
+        }
+    }
+
+    return sqrt(norm2);
 }

@@ -17,6 +17,7 @@ double getResidual(uint32_t cols, uint32_t rows, double knownMat[rows][cols], do
 
 #ifdef MATRIX_H
 bool solveSystemMatrix(Matrix *Right, Matrix *Left, Matrix *Result);
+double getResidualMatrix(Matrix *Right, Matrix *Left, Matrix *Result);
 #endif
 
 #endif

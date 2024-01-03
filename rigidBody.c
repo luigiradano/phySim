@@ -35,7 +35,7 @@ void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsign
 double getKinEne(RigidState *state){
 	//E_k = 0.5 * m * v^2
 	//v^2 = vx^2 + vy^2
-	return 0.5 * state->mass * pow(state->xSpe, 2) + pow(state->ySpe, 2);
+	return 0.5 * state->mass * (pow(state->xSpe, 2) + pow(state->ySpe, 2));
 }
 
 double getPotEne(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
@@ -187,23 +187,24 @@ void stepSingleTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], 
 
 	switch(stepMode[state->id][dimension]){
 		case GET_K1:
-			k[0][state->id][dimension] = *speed;//speIni[state->id][dimension];
+			k[0][state->id][dimension] = *speed;//*speed;
 			kD[0][state->id][dimension] = acc;
 			break;
 
 		case GET_K2:
-			k[1][state->id][dimension] = *speed + kD[0][state->id][dimension] * dT/2;
 			kD[1][state->id][dimension] = acc;
+			k[1][state->id][dimension] = *speed + kD[0][state->id][dimension] * dT/2;
 			break;
 
 		case GET_K3:
-			k[2][state->id][dimension] = *speed + kD[1][state->id][dimension] * dT/2;
 			kD[2][state->id][dimension] = acc;
+			k[2][state->id][dimension] = *speed + kD[1][state->id][dimension] * dT/2;
 			break;
 
 		case GET_K4:
-			k[3][state->id][dimension] = *speed + kD[2][state->id][dimension] * dT;
 			kD[3][state->id][dimension] = acc;
+			k[3][state->id][dimension] = *speed + kD[2][state->id][dimension] * dT;
+			
 			break;
 			
 		case COMPUTE:
@@ -223,7 +224,7 @@ void stepSingleTime(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS], 
 
 	if(stepMode[state->id][dimension] != COMPUTE){
 		*pos = posAcc[state->id][dimension];
-		//*speed = speAcc[state->id][dimension];
+		*speed = speAcc[state->id][dimension];
 	}
 		
 

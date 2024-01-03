@@ -60,7 +60,7 @@ bool solveSystem(uint32_t cols, uint32_t rows, double knownMat[rows][cols], doub
 #ifdef MATRIX_H //Only compile this if MatrixOps.h is available
 bool solveSystemMatrix(Matrix *Right, Matrix *Left, Matrix *Result){
 	
-	uint32_t i, j, k, rowFromBtm;
+	uint32_t i, j, k, rowFromBtm, pivot;
 	double tempCoeff;
 	double lineTot = 0;
 #ifdef DEBUG_GAUSS
@@ -73,6 +73,11 @@ bool solveSystemMatrix(Matrix *Right, Matrix *Left, Matrix *Result){
 			//Cycle trough rows
 			if(getElement(Left, k, k) == 0)
 				return ERROR;
+			//Find pivot
+			pivot = getRowMaxAbs(Left, k);
+			//Partial pivoting
+			swapColumn(Left, pivot, k);
+			
 			tempCoeff = -1* getElement(Left, i, k)/getElement(Left, k, k);	
 			//Do ERO
 			setElement(Right, i, 0, getElement(Right, i, 0) + (getElement(Right, k, 0) * tempCoeff));
@@ -85,6 +90,8 @@ bool solveSystemMatrix(Matrix *Right, Matrix *Left, Matrix *Result){
 #ifdef DEBUG_GAUSS
 	printf("Reduced matrix:\n");
 	printMatrix(Left);
+	printf("Right matrix:\n");
+	printMatrix(Right);
 #endif
 //We can now solve
 	j = Left->cols - 1;
@@ -108,6 +115,20 @@ bool solveSystemMatrix(Matrix *Right, Matrix *Left, Matrix *Result){
 	printMatrix(Result);
 #endif
 	return NO_ERROR;
+}
+double getResidualMatrix(Matrix *Right, Matrix *Left, Matrix *Result){
+	int i, j;
+	double tempSum = 0;
+	double residualSum = 0;
+	Matrix holder;
+	initMatrix(&holder, Result->rows, Result->cols);
+
+	matrixMultiply(Left, Result, &holder);
+	scaleMat( &holder, &holder, -1);
+	addMatrix( Right, &holder,  &holder);
+
+	
+	return getNorm2( &holder) / getNorm2( Right);
 }
 #endif
 
