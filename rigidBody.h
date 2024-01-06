@@ -24,6 +24,12 @@ typedef struct{
 	
 } RigidState;
 
+typedef struct{
+	uint32_t x;
+	uint32_t y;
+	uint32_t color;
+	float radius;
+} SDL_PointColor;
 
 //Rigid body definitions
 typedef struct {

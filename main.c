@@ -7,9 +7,8 @@
 
 #define EXT_ACC_MODULUS 10
 #define ACC_ID 0
-#define TRAJ_POINTS 10000
 #define TIMESTEP_PER_FPS 50
-#define TIMESTEP 0.0001 //In seconds
+#define TIMESTEP 0.0002//In seconds
 
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
@@ -33,6 +32,7 @@ RigidBall ball[2];
 //Trajectory drawing
 SDL_Texture *trajText;
 
+
 uint64_t fpsTime, fpsStart, start, solTime, steTime;
 
 uint32_t i = 0;
@@ -43,12 +43,12 @@ int main(int argc, const char *argv){
 	
 	initSDL();
 	
-	initPlot(&genPlot[0], 20,   0, 50, 1000, 200, "Energy", rend);
+	initPlot(&genPlot[0], 100,   0, 50, 1000, 200, "Energy", rend);
 	initContraintMats(objCount);
 
 	RigidState *states[2];
 	initRigidBall(&ball[0], 0.5, 1);	
-	initRigidBall(&ball[1], 0.5, 10);
+	initRigidBall(&ball[1], 0.5, 1);
 
 	ball[0].state.xPos = 0.5;
 	ball[0].state.yPos = 0;
@@ -78,10 +78,10 @@ int main(int argc, const char *argv){
 		pollSDL();
 
 		//Needs to be rendered as first thing
-		drawTraj(rend, &ball[0], trajText);
+		drawTraj(rend, &ball[1], trajText);
 						
 		char info[110];
-		sprintf(info, "Sim Time: %6.3f s  Timestep: %2.0f ms Sim.Freq: %6.0f Hz FPS: %3.0f  Compute: %.2f ms", simulationTime, TIMESTEP*1000, (float)TIMESTEP_PER_FPS/((float)TIMESTEP), (float)1E6/fpsTime, (float)steTime/1000.0f);		
+		sprintf(info, "Sim Time: %6.3f s  Sim.Freq: %2.0f kHz Updates: %d FPS: %3.0f  Compute: %.2f ms", simulationTime, 1E-3/((float)TIMESTEP), TIMESTEP_PER_FPS, (float)1E6/fpsTime, (float)steTime/1000.0f);		
 		printOnScreen(info, 0, 0, rend);
 		
 		drawRigidBall(rend, &ball[0], SCREEN_HEIGHT, SCREEN_WIDTH, true);
@@ -111,8 +111,8 @@ int main(int argc, const char *argv){
 		double energy = 0;
 		energy += getKinEne(&ball[0].state);
 		energy += getPotEne(&ball[0].state, forceMatrix);
-		//energy += getKinEne(&ball[1].state);
-		//energy += getPotEne(&ball[1].state, forceMatrix);
+		energy += getKinEne(&ball[1].state);
+		energy += getPotEne(&ball[1].state, forceMatrix);
 
 		drawPlot(&genPlot[0], energy);
 
@@ -178,19 +178,27 @@ void pollSDL(){
 					case SDLK_a:
 //						ball.state.xSpe = 10;
 						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] = EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
+						forceMatrix[EXTERNAL_FORCE][1][X_DIM] = EXT_ACC_MODULUS * ball[1].state.mass;
+
 						break;
 					case SDLK_d:
 //						ball.state.xSpe = -10;
 						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] =  -1 * EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
+						forceMatrix[EXTERNAL_FORCE][1][X_DIM] =  -1 * EXT_ACC_MODULUS * ball[1].state.mass;
 
 						break;
 					case SDLK_w:
 //						ball.state.ySpe = 10;
 						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
+						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = EXT_ACC_MODULUS * ball[1].state.mass;
+
 						break;
+						
 					case SDLK_s:
 //						ball.state.ySpe = -10;
 						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
+						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[1].state.mass;
+
 						break;
 					case SDLK_p:
 						plotSelectionMenu = 1;

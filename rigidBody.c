@@ -1,6 +1,11 @@
 #include "main.h"
 #include "rigidBody.h"
 
+#define TRAJ_POINTS 500
+
+SDL_PointColor trajectory[TRAJ_POINTS];
+uint32_t trajIndex = 0;
+
 void initRigidBall(RigidBall *ball, double radius, double mass){
 	ball->state.xPos = 0.010;
 	ball->state.yPos = 0;
@@ -56,6 +61,50 @@ void drawLink(SDL_Renderer *ren, RigidBall *ball, RigidBall *ball2,unsigned int 
 	SDL_SetRenderDrawColor(ren, 0x00, 0x00, 0xFF, 0xFF);
 	SDL_RenderDrawLine(ren,  x1, y1, x2, y2);
 }
+
+/*
+	@brief Fills the texture with black
+*/
+void TextureClearRectangle(int width, int height, uint32_t *pixels)
+{	
+	uint32_t i, maxIndex = width * height;
+    for(i = 0; i < maxIndex; i ++){
+		pixels[i] = 0;
+	}
+}
+
+/*
+	@brief Draws a rectangle on a texture
+*/
+void TextureDrawRectangle(int x0, int y0, int width, int height, uint32_t *pixels, uint32_t rowLen, uint32_t color)
+{
+    for (int x = x0; x < (x0 + width); x++) {
+        for (int y = y0; y < (y0 + height); y++) {
+            
+			pixels[ x + y * rowLen] = color;
+        }
+    }
+}
+
+/*
+	@brief Draws a circle on a texture by utilizing the pixels array directly, rowLen has to be the size of one row in bytes
+*/
+void TextureDrawCircle(int x0, int y0, float radius, uint32_t *pixels, uint32_t rowLen, uint32_t color)
+{
+   for (int w = 0; w < radius * 2; w++)
+    {
+        for (int h = 0; h < radius * 2; h++)
+        {
+            int dx = radius - w; // horizontal offset
+            int dy = radius - h; // vertical offset
+            if ((dx*dx + dy*dy) <= (radius * radius))
+            {
+				pixels[x0 + dx + (y0 + dy) * rowLen] = color;
+
+            }
+        }
+    }
+}
 /*
 	@brief Takes the current display position of each point along the ball trajectory points
 */
@@ -64,42 +113,42 @@ void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle){
 	
 	uint32_t *pixels;
 	int rowLen; //Each pixel takes 4 bytes
-	uint32_t w, h;
+	uint32_t w, h, i;
 
-	if(r == 255 )
-		selected = 1; //Dec R Inc G
-	else if( g == 255)
-		selected = 3; //Inc B Dec G
-	else if( b == 255)
-		selected = 4;//Inc R Dec B
+	// if(r == 255 )
+	// 	selected = 1; //Dec R Inc G
+	// else if( g == 255)
+	// 	selected = 3; //Inc B Dec G
+	// else if( b == 255)
+	// 	selected = 4;//Inc R Dec B
 
-	switch (selected)
-	{
-	case 0:
-		g--;
-		r++;
-		break;
-	case 1:
-		g++;
-		r--;
-		break;
-	case 2:
-		g++;
-		b--;
-		break;
-	case 3:
-		g--;
-		b++;
-		break;
-	case 4:
-		r++;
-		b--;
-		break;
-	case 5:
-		r--;
-		b++;
-		break;
-	}
+	// switch (selected)
+	// {
+	// case 0:
+	// 	g--;
+	// 	r++;
+	// 	break;
+	// case 1:
+	// 	g++;
+	// 	r--;
+	// 	break;
+	// case 2:
+	// 	g++;
+	// 	b--;
+	// 	break;
+	// case 3:
+	// 	g--;
+	// 	b++;
+	// 	break;
+	// case 4:
+	// 	r++;
+	// 	b--;
+	// 	break;
+	// case 5:
+	// 	r--;
+	// 	b++;
+	// 	break;
+	// }
 	
 
 	SDL_LockTexture(trajHandle, NULL, (void**) &pixels, &rowLen);
@@ -108,10 +157,39 @@ void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle){
 	int x1 = w/2 - ball->state.xPos * PIXELS_PER_METER + X_OFFSET;
 	int y1 = h/2 - ball->state.yPos * PIXELS_PER_METER + Y_OFFSET;
 	
-	rowLen /= 4;
+	rowLen /= 4; //Each pixel is 4 bytes
 
-	if(!(x1 < 0 || y1 < 0 || x1 > w || y1 > h))
-		pixels[(y1 * rowLen) + x1] =  b | g << 8 | r << 16;
+	TextureClearRectangle(w,h,pixels); //Clear whole bg texture
+
+	float radius = 4.5 - sqrt(pow(ball->state.xSpe,2) + pow(ball->state.ySpe,2)) * 1.3 ;
+	if(radius < 2)
+	 	radius = 2;
+
+	if(!(x1 < 0 || y1 < 0 || x1 > w || y1 > h)){
+
+		TextureDrawCircle(x1, y1, radius, pixels, rowLen, 0xFF20d687);
+
+		trajectory[trajIndex].x = x1;
+		trajectory[trajIndex].y = y1;
+		trajectory[trajIndex].radius = radius;
+		trajectory[trajIndex].color = 0xFF20d687; //Always set first byte to 0xFF, it doesn't affect color, used to detect if pixel was updated
+
+		if(trajIndex < TRAJ_POINTS)
+			trajIndex ++;
+		else
+			trajIndex = 0;
+
+	}
+
+	//Update old pixels
+	for(i = 0; i < TRAJ_POINTS; i++){
+		
+		if(trajectory[i].radius >= 0.01){
+			trajectory[i].radius -= 0.01;
+			TextureDrawCircle(trajectory[i].x, trajectory[i].y, trajectory[i].radius, pixels, rowLen, trajectory[i].color);
+		}
+
+	}
 
 	SDL_UnlockTexture(trajHandle);
 	
