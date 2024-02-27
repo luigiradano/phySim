@@ -19,8 +19,37 @@ void initRigidBall(RigidBall *ball, double radius, double mass){
 	ball->radius = radius;
 }
 
+void initRigidBeam(RigidBeam *beam, double length, double mass, double thickness){
+	beam->stateA.xPos = 0.000;
+	beam->stateA.xSpe = 0.000;
+	beam->stateA.yPos = 0.000;
+	beam->stateA.ySpe = 0.000;
+	beam->stateA.theta= 0.000;
+	beam->stateA.aSpe = 0.000;
+
+	beam->stateA.mass = mass/2.0f;
+	beam->stateB.mass = mass/2.0f;
+
+	beam->length = length;
+	beam->thickness = thickness;
+}
+
 void printRigidBallState(RigidBall *ball){
 	printf("ID: %d\tX: %.3f\tY: %.3f\tX Speed:%.2f\tY Speed:%.2f\n", ball->state.id, ball->state.xPos, ball->state.yPos, ball->state.xSpe, ball->state.ySpe);
+}
+
+void drawRigidBeam(SDL_Renderer *ren, RigidBeam *beam, unsigned int winH, unsigned int winW){
+	SDL_Point start;
+	SDL_Point end;
+
+	start.x = beam->stateA.xPos * PIXELS_PER_METER;
+	start.y = beam->stateA.yPos * PIXELS_PER_METER;
+
+	end.x = beam->stateB.xPos * PIXELS_PER_METER;
+	end.y = beam->stateB.yPos * PIXELS_PER_METER;
+
+	SDL_SetRenderDrawColor(ren, 0xFF, 0x00, 0x00, 0xFF);
+	SDL_RenderDrawLine(ren, start.x, start.y, end.x, end.y);
 }
 
 void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsigned int winW, bool drawOriginLink){
@@ -37,6 +66,7 @@ void drawRigidBall(SDL_Renderer *ren, RigidBall *ball, unsigned int winH, unsign
 		SDL_RenderDrawLine(ren,  winW/2+ X_OFFSET, winH/2+ Y_OFFSET, dispRect.x + BALL_SIZE/2, dispRect.y + BALL_SIZE/2);
 }
 
+
 double getKinEne(RigidState *state){
 	//E_k = 0.5 * m * v^2
 	//v^2 = vx^2 + vy^2
@@ -47,10 +77,11 @@ double getPotEne(RigidState *state, double forceMat[][MAX_OBJS][DIMENSIONS]){
 	//E_k = m * g * h
 	return -1 * state->yPos * forceMat[EXTERNAL_FORCE][state->id][Y_DIM]; 
 }
+
 /*
 	@brief Draws a link between ball and ball2
 */
-void drawLink(SDL_Renderer *ren, RigidBall *ball, RigidBall *ball2,unsigned int winH, unsigned int winW){
+void drawLink(SDL_Renderer *ren, RigidBall *ball, RigidBall *ball2, unsigned int winH, unsigned int winW){
 	
 	int x1 = winW/2 - ball->state.xPos * PIXELS_PER_METER + X_OFFSET;
 	int y1 = winH/2 - ball->state.yPos * PIXELS_PER_METER + Y_OFFSET;
@@ -109,59 +140,23 @@ void TextureDrawCircle(int x0, int y0, float radius, uint32_t *pixels, uint32_t 
 	@brief Takes the current display position of each point along the ball trajectory points
 */
 uint8_t r = 0, g = 255, b = 0, selected = 0;
-void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle){
+void drawTraj(SDL_Renderer *ren, RigidState *state, SDL_Texture *trajHandle){
 	
 	uint32_t *pixels;
 	int rowLen; //Each pixel takes 4 bytes
-	uint32_t w, h, i;
-
-	// if(r == 255 )
-	// 	selected = 1; //Dec R Inc G
-	// else if( g == 255)
-	// 	selected = 3; //Inc B Dec G
-	// else if( b == 255)
-	// 	selected = 4;//Inc R Dec B
-
-	// switch (selected)
-	// {
-	// case 0:
-	// 	g--;
-	// 	r++;
-	// 	break;
-	// case 1:
-	// 	g++;
-	// 	r--;
-	// 	break;
-	// case 2:
-	// 	g++;
-	// 	b--;
-	// 	break;
-	// case 3:
-	// 	g--;
-	// 	b++;
-	// 	break;
-	// case 4:
-	// 	r++;
-	// 	b--;
-	// 	break;
-	// case 5:
-	// 	r--;
-	// 	b++;
-	// 	break;
-	// }
-	
+	uint32_t w, h, i;	
 
 	SDL_LockTexture(trajHandle, NULL, (void**) &pixels, &rowLen);
 	SDL_QueryTexture(trajHandle, NULL, NULL, &w, &h);
 	
-	int x1 = w/2 - ball->state.xPos * PIXELS_PER_METER + X_OFFSET;
-	int y1 = h/2 - ball->state.yPos * PIXELS_PER_METER + Y_OFFSET;
+	int x1 = w/2 - state->xPos * PIXELS_PER_METER + X_OFFSET;
+	int y1 = h/2 - state->yPos * PIXELS_PER_METER + Y_OFFSET;
 	
 	rowLen /= 4; //Each pixel is 4 bytes
 
 	TextureClearRectangle(w,h,pixels); //Clear whole bg texture
 
-	float radius = 4.5 - sqrt(pow(ball->state.xSpe,2) + pow(ball->state.ySpe,2)) * 1.3 ;
+	float radius = 4.5 - sqrt(pow(state->xSpe,2) + pow(state->ySpe,2)) * 1.3 ;
 	if(radius < 2)
 	 	radius = 2;
 
@@ -195,16 +190,6 @@ void drawTraj(SDL_Renderer *ren, RigidBall *ball, SDL_Texture *trajHandle){
 	
 	SDL_RenderCopy(ren, trajHandle, NULL, NULL);
 
-}
-
-
-int getNextIndex(int currIndex, int delta){
-	if(currIndex + delta < 4)
-		return currIndex + delta;
-	else if(currIndex + delta < 0)
-		return 4 + currIndex + delta;
-	else
-		return 4 - currIndex + delta;
 }
 
 /*
@@ -324,4 +309,6 @@ void stepTime(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], doub
 	
 	
 }
+
+
 

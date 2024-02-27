@@ -172,6 +172,19 @@ bool swapRow(Matrix *A, uint32_t rowA, uint32_t rowB) {
   return NO_ERROR;
 }
 
+bool vec2row(double array[], Matrix *A, uint32_t row, uint32_t size){
+
+	if(size != A->cols)
+		return ERROR;
+
+	uint32_t i;
+	for( i = 0; i < size; i ++){
+		setElement(A, row, i, array[i]);
+	}
+
+	return NO_ERROR;
+}
+
 /*
 	@brief Returns the Row Index of the max in absolute value inside the specified column
 */

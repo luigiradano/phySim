@@ -5,10 +5,11 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define EXT_ACC_MODULUS 10
+#define MOUSE_IS_GRAVITY
+#define EXT_ACC_MODULUS 50
 #define ACC_ID 0
-#define TIMESTEP_PER_FPS 50
-#define TIMESTEP 0.0002//In seconds
+#define TIMESTEP_PER_FPS 60
+#define TIMESTEP 0.0001//In seconds
 
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
@@ -78,7 +79,7 @@ int main(int argc, const char *argv){
 		pollSDL();
 
 		//Needs to be rendered as first thing
-		drawTraj(rend, &ball[1], trajText);
+		drawTraj(rend, &ball[1].state, trajText);
 						
 		char info[110];
 		sprintf(info, "Sim Time: %6.3f s  Sim.Freq: %2.0f kHz Updates: %d FPS: %3.0f  Compute: %.2f ms", simulationTime, 1E-3/((float)TIMESTEP), TIMESTEP_PER_FPS, (float)1E6/fpsTime, (float)steTime/1000.0f);		
@@ -89,18 +90,26 @@ int main(int argc, const char *argv){
 		
 		drawLink(rend, &ball[0], &ball[1], SCREEN_HEIGHT, SCREEN_WIDTH);
 
-		
+		int32_t xForceFactor = 0, yForceFactor = 0;
+
+#ifdef MOUSE_IS_GRAVITY
+		SDL_GetMouseState(&xForceFactor, &yForceFactor);
+
+		xForceFactor -= SCREEN_WIDTH/2;
+		yForceFactor -= SCREEN_HEIGHT/2;
+#endif
+
 		start = micro_time();
 		for(i = 0; i < TIMESTEP_PER_FPS; i ++){
-			
-			forceMatrix[EXTERNAL_FORCE][0][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[0].state.mass;
-			forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[1].state.mass;
-
-			forceMatrix[EXTERNAL_FORCE][0][X_DIM] = 0;
-			forceMatrix[EXTERNAL_FORCE][1][X_DIM] = 0;
 
 			solveConstraints( states, forceMatrix, 2);
 			stepTime(states, forceMatrix, TIMESTEP, objCount, &simulationTime);
+
+			forceMatrix[EXTERNAL_FORCE][0][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[0].state.mass * xForceFactor / (float) SCREEN_WIDTH/2;
+			forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[1].state.mass * yForceFactor / (float) SCREEN_HEIGHT/2;
+
+			forceMatrix[EXTERNAL_FORCE][0][X_DIM] = 0;
+			forceMatrix[EXTERNAL_FORCE][1][X_DIM] = 0;
 		}
 	
 		steTime = micro_time() - start;
@@ -135,6 +144,7 @@ int main(int argc, const char *argv){
 
 	return 0;
 }
+
 
 uint64_t micro_time() {
     struct timeval tv;

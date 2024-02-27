@@ -10,6 +10,8 @@ typedef enum {
 	SET_RADIUS,
 } ConstraintType;
 
+
+
 typedef struct {
 	ConstraintType type;
 	Matrix jacobTrans;

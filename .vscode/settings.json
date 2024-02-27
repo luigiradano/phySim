@@ -4,7 +4,8 @@
         "main.h": "c",
         "constraintsolve.h": "c",
         "gsolve.h": "c",
-        "matrixops.h": "c"
+        "matrixops.h": "c",
+        "jacobians.h": "c"
     },
     "cSpell.enableFiletypes": [
         "!c"
