@@ -5,9 +5,11 @@
         "constraintsolve.h": "c",
         "gsolve.h": "c",
         "matrixops.h": "c",
-        "jacobians.h": "c"
+        "jacobians.h": "c",
+        "constraint.h": "c"
     },
     "cSpell.enableFiletypes": [
         "!c"
-    ]
+    ],
+    "C_Cpp.dimInactiveRegions": false
 }

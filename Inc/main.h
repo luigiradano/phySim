@@ -17,6 +17,7 @@
 #define PLOT_COUNT 2
 
 extern double simulationTime;
+extern unsigned const int objCount;
 
 typedef struct {
 	float mass;
@@ -40,7 +41,8 @@ enum {
 };
 enum {
 	NO_ERROR,
-	ERROR
+	ERROR,
+	WARN
 };
 
 /*
@@ -52,7 +54,7 @@ typedef struct {
 }
 */
 
-void printForce(float forceMat[][MAX_OBJS], unsigned int objCount);
+void printForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount);
 void initForceMat(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount);
 double getTotForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int id, int objCount, int dimId);
 void setRenderer(SDL_Renderer *ren);

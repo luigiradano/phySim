@@ -25,5 +25,5 @@ bool swapRow(Matrix *A, uint32_t rowA, uint32_t rowB);
 int getColMaxAbs(Matrix *A, uint32_t colIndex);
 int getRowMaxAbs(Matrix *A, uint32_t rowIndex);
 double getNorm2(Matrix *A);
-bool vec2row(double array[], Matrix *A, uint32_t row, uint32_t size);
+uint8_t vec2row(double array[], Matrix *A, uint32_t row, uint32_t size, uint32_t offset);
 #endif

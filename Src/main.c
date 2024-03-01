@@ -5,12 +5,13 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define MOUSE_IS_GRAVITY
-#define EXT_ACC_MODULUS 50
+//#define MOUSE_IS_GRAVITY
+#define EXT_ACC_MODULUS 2
 #define ACC_ID 0
-#define TIMESTEP_PER_FPS 60
+#define TIMESTEP_PER_FPS 01
 #define TIMESTEP 0.0001//In seconds
 
+// #define SINGLESTATEDEBUG
 
 void killProgram(SDL_Window *win, SDL_Renderer *ren);
 double forceMatrix[2][MAX_OBJS][DIMENSIONS];	
@@ -29,7 +30,6 @@ SDL_Point clickPos;
 
 bool quit = 0; //Variable to exit gracefully from program
 
-RigidBall ball[2];
 //Trajectory drawing
 SDL_Texture *trajText;
 
@@ -40,6 +40,7 @@ uint32_t i = 0;
 double simulationTime = 0;
 
 //MAIN
+/*
 int main(int argc, const char *argv){
 	
 	initSDL();
@@ -48,8 +49,8 @@ int main(int argc, const char *argv){
 	initContraintMats(objCount);
 
 	RigidState *states[2];
-	initRigidBall(&ball[0], 0.5, 1);	
-	initRigidBall(&ball[1], 0.5, 1);
+	initRigidBall(&ball[0], 0.5, 0.2);	
+	initRigidBall(&ball[1], 0.5, 0.2);
 
 	ball[0].state.xPos = 0.5;
 	ball[0].state.yPos = 0;
@@ -103,7 +104,7 @@ int main(int argc, const char *argv){
 		for(i = 0; i < TIMESTEP_PER_FPS; i ++){
 
 			solveConstraints( states, forceMatrix, 2);
-			stepTime(states, forceMatrix, TIMESTEP, objCount, &simulationTime);
+			stepSystemTime(states, forceMatrix, TIMESTEP, objCount, &simulationTime);
 
 			forceMatrix[EXTERNAL_FORCE][0][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[0].state.mass * xForceFactor / (float) SCREEN_WIDTH/2;
 			forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[1].state.mass * yForceFactor / (float) SCREEN_HEIGHT/2;
@@ -144,7 +145,144 @@ int main(int argc, const char *argv){
 
 	return 0;
 }
+*/
 
+int main(int argc, const char *argv){
+	
+	initSDL();
+    
+
+	RigidBeam test;
+	//Initalize and register the hinge constraint
+	Constraint fixOrigin;
+	RigidState originSetpoint;
+
+	RigidState stato;
+
+	stato.xPos = 1;
+	stato.yPos = 0;
+	stato.xSpe = 0;
+	stato.ySpe = 0;
+	stato.mass = 1;
+
+	
+#ifdef SINGLESTATEDEBUG
+	registerState(&stato);
+	registerState(&originSetpoint);
+
+	originSetpoint.xPos = stato.xPos+0.5;
+	originSetpoint.xSpe = stato.xSpe;
+	originSetpoint.yPos = stato.yPos;
+	originSetpoint.ySpe = stato.ySpe;
+	originSetpoint.mass = 1;
+	originSetpoint.fixed = true;
+
+	forceMatrix[EXTERNAL_FORCE][stato.id][Y_DIM] = -1 * EXT_ACC_MODULUS;
+	forceMatrix[EXTERNAL_FORCE][stato.id][X_DIM] = 0;
+
+	initHingeConstraint(&fixOrigin, stato.id, originSetpoint.id);
+
+#else
+	registerState(&originSetpoint);
+
+	//Initalize the beam linkage
+	initRigidBeam(&test, 0.5, 2, 2);
+	initHingeConstraint(&fixOrigin, test.stateA.id, originSetpoint.id);
+
+	originSetpoint.xPos = test.stateA.xPos;
+	originSetpoint.xSpe = test.stateA.xSpe;
+	originSetpoint.yPos = test.stateA.yPos;
+	originSetpoint.ySpe = test.stateA.xSpe;
+	originSetpoint.mass = 1;
+
+	forceMatrix[EXTERNAL_FORCE][test.stateA.id][Y_DIM] = -1 * EXT_ACC_MODULUS;
+	forceMatrix[EXTERNAL_FORCE][test.stateA.id][X_DIM] = 0;
+	
+	forceMatrix[EXTERNAL_FORCE][test.stateB.id][Y_DIM] = 1 * EXT_ACC_MODULUS;
+	forceMatrix[EXTERNAL_FORCE][test.stateB.id][X_DIM] = 0;
+#endif
+
+
+	//Fix the position of one end of the beam
+	registerConstraint(&fixOrigin);
+
+	setInitials(globState, stateIndex); //Get inital states
+
+	trajText = SDL_CreateTexture(rend, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+	SDL_SetRenderDrawColor(rend, 0x00, 0x00, 0x00, 0xFF);
+	SDL_RenderClear(rend);
+	SDL_SetTextureBlendMode(trajText, SDL_BLENDMODE_BLEND);
+
+	initContraintMats(constIndex);
+
+	while(!quit){
+		
+		fpsStart = micro_time();
+		pollSDL();
+
+#ifndef SINGLESTATEDEBUG
+		drawTraj(rend, &test.stateA, trajText);
+		drawLink(rend, &test.stateA,  &test.stateB, SCREEN_HEIGHT, SCREEN_WIDTH);
+#else
+		drawTraj(rend, &stato, trajText);
+#endif
+				
+		// char info[110];
+		// sprintf(info, "Sim Time: %6.3f s  Sim.Freq: %2.0f kHz Updates: %d FPS: %3.0f  Compute: %.2f ms", simulationTime, 1E-3/((float)TIMESTEP), TIMESTEP_PER_FPS, (float)1E6/fpsTime, (float)steTime/1000.0f);		
+		// printOnScreen(info, 0, 0, rend);
+
+		
+		int32_t xForceFactor = 0, yForceFactor = 0;
+
+#ifdef MOUSE_IS_GRAVITY
+		SDL_GetMouseState(&xForceFactor, &yForceFactor);
+
+		xForceFactor -= SCREEN_WIDTH/2;
+		yForceFactor -= SCREEN_HEIGHT/2;
+#endif
+
+		start = micro_time();
+		for(i = 0; i < TIMESTEP_PER_FPS; i ++){
+
+			if (solveConstraintSystem(globConst, globState, forceMatrix, constIndex) == ERROR){
+				printf("Error in constraint solution!\n");
+			}
+			
+			stepSystemTime(globState, forceMatrix, TIMESTEP, stateIndex, &simulationTime);
+
+#ifdef SINGLESTATEDEBUG
+			forceMatrix[EXTERNAL_FORCE][stato.id][Y_DIM] = -1 * EXT_ACC_MODULUS;
+			forceMatrix[EXTERNAL_FORCE][stato.id][X_DIM] = 0;
+#else
+			forceMatrix[EXTERNAL_FORCE][test.stateA.id][Y_DIM] = -1 * EXT_ACC_MODULUS;
+			forceMatrix[EXTERNAL_FORCE][test.stateA.id][X_DIM] = 0;
+			forceMatrix[EXTERNAL_FORCE][test.stateB.id][Y_DIM] = 1 * EXT_ACC_MODULUS;
+			forceMatrix[EXTERNAL_FORCE][test.stateB.id][X_DIM] = 0;
+#endif
+		}
+	
+		steTime = micro_time() - start;
+
+		printf("Origin:\t\t");
+		printState(globState[0], forceMatrix);
+		printf("State A:\t");
+		printState(globState[1], forceMatrix);
+#ifndef SINGLESTATEDEBUG
+		printf("State B:\t");	
+		printState(globState[2], forceMatrix);
+		printDistance(&test.stateA, &test.stateB);
+#endif
+
+		SDL_RenderPresent(rend);
+
+		fpsTime = micro_time() - fpsStart;
+
+	}
+	killProgram(window, rend);	
+
+	return 0;
+}
 
 uint64_t micro_time() {
     struct timeval tv;
@@ -187,27 +325,26 @@ void pollSDL(){
 
 					case SDLK_a:
 //						ball.state.xSpe = 10;
-						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] = EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
-						forceMatrix[EXTERNAL_FORCE][1][X_DIM] = EXT_ACC_MODULUS * ball[1].state.mass;
+						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] = EXT_ACC_MODULUS ;
+						forceMatrix[EXTERNAL_FORCE][1][X_DIM] = EXT_ACC_MODULUS ;
 
 						break;
 					case SDLK_d:
 //						ball.state.xSpe = -10;
-						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] =  -1 * EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
-						forceMatrix[EXTERNAL_FORCE][1][X_DIM] =  -1 * EXT_ACC_MODULUS * ball[1].state.mass;
-
+						forceMatrix[EXTERNAL_FORCE][ACC_ID][X_DIM] =  -1 * EXT_ACC_MODULUS ;
+						forceMatrix[EXTERNAL_FORCE][1][X_DIM] =  -1 * EXT_ACC_MODULUS ;
 						break;
 					case SDLK_w:
 //						ball.state.ySpe = 10;
-						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
-						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = EXT_ACC_MODULUS * ball[1].state.mass;
+						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = EXT_ACC_MODULUS;
+						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = EXT_ACC_MODULUS ;
 
 						break;
 						
 					case SDLK_s:
 //						ball.state.ySpe = -10;
-						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[ACC_ID].state.mass;
-						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS * ball[1].state.mass;
+						forceMatrix[EXTERNAL_FORCE][ACC_ID][Y_DIM] = -1 * EXT_ACC_MODULUS ;
+						forceMatrix[EXTERNAL_FORCE][1][Y_DIM] = -1 * EXT_ACC_MODULUS ;
 
 						break;
 					case SDLK_p:
@@ -266,3 +403,23 @@ double getTotForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int id ,int
 	return totForce;
 }
 
+void printForce(double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount){
+	uint32_t i, j, k;
+	for( i = 0; i < CONSTRAINT_FORCE; i ++){
+		if(i == EXTERNAL_FORCE)
+			printf("\nExternal Forces, ");
+		else
+			printf("\nInternal Forces, ");
+		
+		for( j = 0; j < DIMENSIONS; j++){
+			if(j == X_DIM)
+				printf(" X dim:");
+			else
+				printf(" Y dim:");
+			
+			for(k = 0; k < objCount; k ++){
+				printf( "\t%.3f,", forceMat[i][j][k]);
+			}
+		}
+	}
+}

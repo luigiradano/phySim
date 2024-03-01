@@ -5,11 +5,12 @@ void printMatrix(Matrix *mat){
 	unsigned int i, j;
 	for( i = 0; i < mat->rows; i++){
 		for( j = 0; j < mat->cols; j++){
-			printf("\t%.3f", getElement(mat, i, j));
+			printf("\t%.9f", getElement(mat, i, j));
 		}
 		printf("\n");
 	}
 }
+
 void initMatrix(Matrix *mat, unsigned int rows, unsigned int cols){
 	double* tmp = (double*) calloc(sizeof(double), rows * cols);
 	if(tmp == NULL)
@@ -172,16 +173,23 @@ bool swapRow(Matrix *A, uint32_t rowA, uint32_t rowB) {
   return NO_ERROR;
 }
 
-bool vec2row(double array[], Matrix *A, uint32_t row, uint32_t size){
+/*
+	@brief Puts a double array in place of a matrix row, using the specified offset to shift the elements of the vector towards the right of the matrix
+*/
+uint8_t vec2row(double array[], Matrix *A, uint32_t row, uint32_t size, uint32_t offset){
+	bool warnFlag = false;
 
 	if(size != A->cols)
-		return ERROR;
+		warnFlag = 1;
 
 	uint32_t i;
 	for( i = 0; i < size; i ++){
-		setElement(A, row, i, array[i]);
+		setElement(A, row, i+offset, array[i]);
 	}
 
+	if(warnFlag)
+		return WARN;
+		
 	return NO_ERROR;
 }
 

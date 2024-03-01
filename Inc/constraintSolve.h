@@ -6,19 +6,8 @@
 
 extern double residual;
 
-typedef enum {
-	SET_RADIUS,
-} ConstraintType;
 
-
-
-typedef struct {
-	ConstraintType type;
-	Matrix jacobTrans;
-	Matrix jacob2Trans;
-} Constraint;
-
-
+bool solveConstraintSystem(Constraint *constraints[], RigidState *states[], double forceMat[][MAX_OBJS][DIMENSIONS], uint16_t constraintCount);
 void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount);
 void initConstraints(Constraint *con, double (*getC)(double x, double y), void (*getJacobian)(double x, double y, Matrix *RES), void (*getJacobian2)(double x, double y, Matrix *RES));
 void initContraintMats( unsigned int objCount);

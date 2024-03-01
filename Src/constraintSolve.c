@@ -7,18 +7,20 @@
 #define OSC_CUTOUT 1
 #define MAX_FORCE 1E20
 
-#define TRAJ_SMOOTH 1
-#define SPED_SMOOTH 0.5
+#define TRAJ_SMOOTH 0
+#define SPED_SMOOTH 0
 
 double residual;
 
-//#define DEBUG_RESULT
-/*
 #define DEBUG_LEFT
 #define DEBUG_JACOB
 #define DEBUG_RIGHT
 #define DEBUG_RESULT
-*/
+#define DEBUG_INPUTS
+
+
+
+
 
 //JACOBIAN COMPUTATION INSTRUCTIOS
 void getTraj(double xA, double yA, double xB, double yB, Matrix *RES){
@@ -119,26 +121,117 @@ setForce(forceMat, id, i, feedBack);
 */
 
 // SERIOUS CONSTRAINT SOLVER AHEAD
-void initConstraints(Constraint *con, double (*getC)(double x, double y), void (*getJacobian)(double x, double y, Matrix *RES), void (*getJacobian2)(double x, double y, Matrix *RES)){
-
-}
 
 Matrix jacob, jacob2, mass, velocity, force, left, right, right1, right2, corrector, tmp, solVec;
 
 void initContraintMats( unsigned int objCount){
-		initMatrix(&jacob, objCount, objCount * DIMENSIONS);//Jacobian matrix
-		initMatrix(&jacob2, objCount, objCount * DIMENSIONS);//Time derivative of jacobian
-		initMatrix(&mass, DIMENSIONS * objCount, DIMENSIONS * objCount); //Mass matrix (ToBeImproved)
-		initMatrix(&velocity, DIMENSIONS * objCount, 1);//Velocity vector
-		initMatrix(&force, DIMENSIONS * objCount, 1);//Force vector
+		unsigned int jacobianDimension = 4; //Size of a single row of the Jacobian matrix
+
+		initMatrix(&jacob, objCount, jacobianDimension);//Jacobian matrix
+		initMatrix(&jacob2, objCount, jacobianDimension);//Time derivative of jacobian
+		initMatrix(&mass, jacobianDimension, jacobianDimension); //Mass matrix (ToBeImproved)
+		initMatrix(&velocity, jacobianDimension, 1);//Velocity vector
+		initMatrix(&force, jacobianDimension, 1);//Force vector
 		initMatrix(&left, objCount, objCount);//Left Matrix
 		initMatrix(&right, objCount, 1);//Right Matrix
 		initMatrix(&right1, objCount, 1);//Right 1st computation
 		initMatrix(&right2, objCount, 1);//Right 2nd computation
 		initMatrix(&corrector, objCount, 1);//Correction matrix
-		initMatrix(&tmp, objCount, DIMENSIONS * objCount); //Jacobian * Mass holder
+		initMatrix(&tmp, objCount, jacobianDimension); //Jacobian * Mass holder
 		initMatrix(&solVec, objCount, 1); //Solution vector for solved system
 
+}
+
+bool solverSolve(){
+    bool errFlag = false;
+#ifdef DEBUG_INPUTS
+	printf("Force :\n");
+	printMatrix(&force);
+	
+	printf("Velocity :\n");
+	printMatrix(&velocity);
+
+	printf("Masses :\n");
+	printMatrix(&mass);
+#endif	
+#ifdef DEBUG_JACOB
+	printf("Jacobian :\n");
+	printMatrix(&jacob);
+	printf("Jacobian 2:\n");
+	printMatrix(&jacob2);
+#endif
+
+	//Left side computation
+	errFlag |= matrixMultiply(&jacob, &mass, &tmp);
+
+#ifdef DEBUG_JACOB
+	printf("J * W:\n");
+	printMatrix(&tmp);
+#endif
+
+	transpose(&jacob);
+	errFlag |= matrixMultiply(&tmp, &jacob, &left);
+
+	transpose(&jacob);
+
+	if(errFlag){
+		printf("Error in left computation!\n");
+		errFlag = false;
+	}
+
+#ifdef DEBUG_LEFT
+	printf("Error Flag: %d\tLeft :\n", errFlag);
+	printMatrix(&left);
+#endif
+
+
+	//Right side computation
+	errFlag |= matrixMultiply(&jacob2, &velocity, &right2);
+	errFlag |= matrixMultiply(&tmp, &force, &right1);
+	errFlag |= addMatrix(&right1, &right2, &right);
+	// //Feedback corrections
+	errFlag |= scaleMat(&corrector, &corrector, TRAJ_SMOOTH); //Trajectory drift correction
+	errFlag |= addMatrix(&right, &corrector, &right);
+
+	errFlag |= matrixMultiply(&jacob, &velocity, &corrector);
+	errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH); //Trajectory drift correction
+	errFlag |= addMatrix(&right, &corrector, &right);
+
+	errFlag |= scaleMat(&right, &right, -1);
+
+	if(errFlag){
+		printf("Error in right computation!\n");
+		errFlag = false;
+	}
+
+#ifdef DEBUG_RIGHT
+	printf("Error Flag: %d\tRight :\n", errFlag);
+	printMatrix(&right);
+#endif
+
+#ifdef DEBUG_SYSTEM
+	printf("System Right eq:\n");
+	printMat(1, left.rows, riSi);
+	printf("System Left eq:\n");
+	printMat(left.cols, left.rows, leSi);
+#endif
+	
+	if(solveSystemMatrix(&right, &left, &solVec) == ERROR){
+		printf("Unsolvable system! Exiting\n");
+		return ERROR;
+	}
+		
+	
+
+#ifdef DEBUG_RESULT
+	residual = getResidualMatrix(&right, &left, &solVec);
+	printf("Residual: %.30f\tResult:\n",  residual);
+	printMatrix(&solVec);
+#endif
+	if(errFlag)
+		return ERROR;
+	else
+		return NO_ERROR;
 }
 
 void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSIONS], unsigned int objCount){
@@ -271,110 +364,48 @@ void solveConstraints(RigidState *state[], double forceMat[][MAX_OBJS][DIMENSION
 	}
 	
 
-
-#ifdef DEBUG_FORCES
-	printf("%.3f Lambda\t%.3f X\t%.3f Y\n", res[0], forceMat[CONSTRAINT_FORCE][0][X_DIM], forceMat[CONSTRAINT_FORCE][0][Y_DIM]);
-#endif
-
 } 
 
-void solveConstraints2(Constraint *constraints[], double forceMat[][MAX_OBJS][DIMENSIONS], uint16_t constraintCount){
+bool solveConstraintSystem(Constraint *constraints[], RigidState *states[], double forceMat[][MAX_OBJS][DIMENSIONS], uint16_t constraintCount){
     bool errFlag = false;
 
 	unsigned int i, j, stateIndex = 0;
-	RigidState *states[MAX_OBJS];
-
 
 	for(i = 0; i < constraintCount; i++){
-		//constraints[i].propagateForces(); //Propagate forces inisde interal multi state systems
-		//constraints[i].updateStates(states, stateIndex) //Update the states in the state vector
-		//constraints[i].updateJacobians(jacobian, jacobian2, corrector) //Compute the jacobian
+		// constraints[i]->propagateForces(forceMat, constraints[i]); //Propagate forces inisde interal multi state systems
+		// constraints[i].updateStates(states, stateIndex) //Update the states in the state vector
+		constraints[i]->updateJacobians(&jacob, &jacob2, &corrector, i, constraints[i], states); //Compute the jacobian
+		
 	}
-
+	
+	fillMatrices(forceMat, constraints[0], states, &force, &velocity, &mass, 0); //Fill the force, velocity and mass matrices
 	
 	//Do solveConstraints normally
 
-
-	if(errFlag){
-		printf("Error assigning input data!\n");
-		errFlag = false;
+	if(solverSolve() != NO_ERROR){
+		printf("Error In Solving system! skipping\n");
+		return ERROR;
 	}
 
+	for(i = 0; i < constraintCount; i++){
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateAIndex][X_DIM] = 0;
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateAIndex][Y_DIM] = 0;
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][X_DIM] = 0;
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][Y_DIM] = 0;
+	}	
 
+	i = 0;
 
-	//Left side computation
-	errFlag |= matrixMultiply(&jacob, &mass, &tmp);
+	// forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][X_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, X_DIM);
+	// forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][Y_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, Y_DIM);
 
-#ifdef DEBUG_JACOB
-	printf("J * W:\n");
-	printMatrix(&tmp);
-#endif
-
-	transpose(&jacob);
-	errFlag |= matrixMultiply(&tmp, &jacob, &left);
-
-	transpose(&jacob);
-
-	if(errFlag){
-		printf("Error in left computation!\n");
-		errFlag = false;
-	}
-
-#ifdef DEBUG_LEFT
-	printf("Error Flag: %d\tLeft :\n", errFlag);
-	printMatrix(&left);
-#endif
-
-	//Right side computation
-	errFlag |= matrixMultiply(&jacob2, &velocity, &right2);
-	errFlag |= matrixMultiply(&tmp, &force, &right1);
-	errFlag |= addMatrix(&right1, &right2, &right);
-	//Feedback corrections
-	errFlag |= scaleMat(&corrector, &corrector, TRAJ_SMOOTH); //Trajectory drift correction
-	errFlag |= addMatrix(&right, &corrector, &right);
-
-	errFlag |= matrixMultiply(&jacob, &velocity, &corrector);
-	errFlag |= scaleMat(&corrector, &corrector, SPED_SMOOTH); //Trajectory drift correction
-	errFlag |= addMatrix(&right, &corrector, &right);
-
-	errFlag |= scaleMat(&right, &right, -1);
-
-	if(errFlag){
-		printf("Error in right computation!\n");
-		errFlag = false;
-	}
-
-#ifdef DEBUG_RIGHT
-	printf("Error Flag: %d\tRight :\n", errFlag);
-	printMatrix(&right);
-#endif
-
-#ifdef DEBUG_SYSTEM
-	printf("System Right eq:\n");
-	printMat(1, left.rows, riSi);
-	printf("System Left eq:\n");
-	printMat(left.cols, left.rows, leSi);
-#endif
-	
-	if(solveSystemMatrix(&right, &left, &solVec) == ERROR){
-		printf("Unsolvable system! Exiting\n");
-		return;
-	}
-
-#ifdef DEBUG_RESULT
-	residual = getResidualMatrix(&right, &left, &solVec);
-	printf("Residual: %.30f\tResult:\n",  residual);
-	printMatrix(&solVec);
-#endif
-
-	for(i = 0; i < objCount; i ++){
-		forceMat[CONSTRAINT_FORCE][i][X_DIM] =  getElement(&solVec, i, 0) * getElement(&jacob, i, X_DIM);
-		forceMat[CONSTRAINT_FORCE][i][Y_DIM] =  getElement(&solVec, i, 0) * getElement(&jacob, i, Y_DIM);
+	for(i = 1; i < constraintCount; i++){
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateAIndex][X_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, X_DIM);
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateAIndex][Y_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, Y_DIM);
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][X_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, 2 + X_DIM);
+		forceMat[CONSTRAINT_FORCE][constraints[i]->stateBIndex][Y_DIM] +=  	getElement(&solVec, i, 0) * getElement(&jacob, i, 2 + Y_DIM);
 	}
 	
-#ifdef DEBUG_FORCES
-	printf("%.3f Lambda\t%.3f X\t%.3f Y\n", res[0], forceMat[CONSTRAINT_FORCE][0][X_DIM], forceMat[CONSTRAINT_FORCE][0][Y_DIM]);
-#endif
 
-} 
-
+	return NO_ERROR;
+}

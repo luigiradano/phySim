@@ -1,6 +1,6 @@
 #include "main.h"
 #include "gSolve.h"
-//#define DEBUG_GAUSS
+// #define DEBUG_GAUSS
 
 void printMat(uint32_t cols, uint32_t rows, double mat[rows][cols]){
 	int i, j;

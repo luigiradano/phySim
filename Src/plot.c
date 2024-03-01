@@ -6,7 +6,7 @@
 #define MIN_PLOT_W 50
 
 TTF_Font *Sans;
-SDL_Color Black = {0xFF,0xFF,0xFF};
+SDL_Color Black = {0xFF,0x00,0xFF};
 SDL_Color PlotTextColor = {0xFF,0xFF,0xFF};
 SDL_Color PlotLineColor = {0,0,0};
 
